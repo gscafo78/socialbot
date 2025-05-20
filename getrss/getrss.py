@@ -88,7 +88,7 @@ def main():
     Example usage:
     Fetches and prints the latest RSS item from the given feed URL.
     """
-    rss_url = "https://8bitsecurity.com/feed/"
+    rss_url = "https://www.cshub.com/rss/articles"
     rss = RSSLatestItem(rss_url)
     result = rss.get_latest_rss()
     if result:
