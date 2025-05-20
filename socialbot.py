@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta
 from utils.readjson import JSONReader
 from getrss.getrss import RSSLatestItem
@@ -69,28 +70,32 @@ def readrss(rss_urls, newrss):
 
 def main():
     """
-    Example usage:
-    Reads a JSON configuration file, logs its content, and prints the list of RSS items
-    not older than 6 months in a pretty JSON format.
+    Runs the main loop in an infinite cycle, with a 10-minute pause between each execution.
+    Exits only if Ctrl+C is pressed.
 
-    Steps:
-    1. Load configuration from settings.json.
-    2. Retrieve the list of RSS URLs from the config.
-    3. Call readrss() to process the feeds.
-    4. Print the resulting list in a structured way.
+    How to run:
+        python socialbot.py
+
+    Required variables:
+        - settings.json: JSON configuration file containing at least the 'rss' key with a list of RSS feed URLs.
+        - The script expects the file path to be set in 'file_path' variable (default: /opt/github/03_Script/Python/socialbot/settings.json).
     """
     file_path = "/opt/github/03_Script/Python/socialbot/settings.json"  # Path to your JSON config file
     reader = JSONReader(file_path)
     newrss = []
-    config = reader.get_data()
-    logger.info("Full JSON data:")
-    # logger.info(json.dumps(config, indent=4, ensure_ascii=False))
-    # Example: try to get the value for key 'rss'
-    value = reader.get_value('rss', default="Key not found")
-    logger.info(f"Value for key 'rss': {value}")
-    newrss = readrss(config['rss'], newrss)
-    # Print the resulting list of RSS items in a pretty JSON format
-    print(json.dumps(newrss, indent=4, ensure_ascii=False, default=str))
+    try:
+        while True:
+            config = reader.get_data()
+            logger.info("Full JSON data:")
+            # logger.info(json.dumps(config, indent=4, ensure_ascii=False))
+            value = reader.get_value('rss', default="Key not found")
+            logger.info(f"Value for key 'rss': {value}")
+            newrss = readrss(config['rss'], newrss)
+            print(json.dumps(newrss, indent=4, ensure_ascii=False, default=str))
+            logger.info("Waiting 10 minutes before the next execution...")
+            time.sleep(600)  # 600 seconds = 10 minutes
+    except KeyboardInterrupt:
+        logger.info("Manual interruption received. Exiting program.")
 
 if __name__ == "__main__":
     main()
