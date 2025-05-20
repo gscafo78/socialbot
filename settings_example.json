@@ -1,0 +1,8 @@
+{
+    "openai_key": "Put here your OpenAI API key",
+    "rss": ["https://www.cybersecurity360.it/feed/",
+            "https://www.ictsecuritymagazine.com/feed/",
+            "https://8bitsecurity.com/feed/",
+            "https://www.hackingnews.com/feed/"],
+    "telegram": {}
+}
