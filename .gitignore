@@ -17,7 +17,7 @@ env.bak/
 venv.bak/
 
 # Config file
-config.json
+settings.json
 
 # General
 .DS_Store
