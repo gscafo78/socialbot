@@ -48,7 +48,7 @@ def main():
         service (str): The Bluesky service URL.
         message (str): The text content of the post to publish.
     """
-    handle = "gscafo78.bsky.social"               # Replace with your handle
+    handle = "username.bsky.social"               # Replace with your handle
     password = "xxxxxxxxxxxx"                     # Replace with your password
     service = "https://bsky.social"               # Replace with your service URL
     message = "Hello, this is an automatic test with atproto!"
