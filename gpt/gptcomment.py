@@ -1,7 +1,7 @@
 from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
-from getmodel import get_cheapest_gpt_model
+from .getmodel import GPTModelSelector
 
 class ArticleCommentator:
     """
@@ -21,7 +21,8 @@ class ArticleCommentator:
         self.language = language
         # If no model is provided, select the cheapest GPT model automatically
         if model is None:
-            self.model = get_cheapest_gpt_model(self.openai_key)
+            selector = GPTModelSelector(self.openai_key)
+            self.model = selector.get_cheapest_gpt_model()
             # print(f"Automatic model selection: {self.model}")
         else:
             self.model = model
@@ -75,7 +76,7 @@ def main():
     Generates and prints a comment for the article.
     """
     article_link = "https://www.redhotcyber.com/post/falso-mito-se-uso-una-vpn-sono-completamente-al-sicuro-anche-su-reti-wifi-aperte-e-non-sicure/"
-    openai_key = "XXXXXXXXXXXXXXXXXXXX" # Replace with your OpenAI API key
+    openai_key = "XXXXXXXXXXXXXXXXXXXXXXXXXXX" # Replace with your OpenAI API key
     # max_caratteri = int(input("Inserisci il numero massimo di caratteri per la risposta: "))
     # lingua = input("Lingua della risposta ('it' per italiano, 'en' per inglese): ").strip().lower()
     

@@ -3,10 +3,29 @@ import time
 from utils.readjson import JSONReader
 from utils.logger import Logger
 from rssfeeders.rssfeeders import RSSFeeders
-
+from gpt.gptcomment import ArticleCommentator
+from gpt.getmodel import GPTModelSelector
 
 # Logger configuration
 logger = Logger.get_logger(__name__)
+
+
+def put_comment(feeds, openai_key, gptmodel, gptmaxchars=200, language="it"):
+    # inserire la procedutra di arricchimento del commento
+    commentend_feeds = []
+    for feed in feeds:
+        # print(feed["ai"])
+        if feed["ai"] == True:
+            gptcomment = ArticleCommentator(feed["link"], 
+                                            openai_key, 
+                                            gptmodel, 
+                                            gptmaxchars, 
+                                            language)
+            feed["ai-comment"] = gptcomment.generate_comment()
+            commentend_feeds.append(feed)
+            gptcomment = None
+    
+    return commentend_feeds
 
 
 def main():
@@ -35,13 +54,44 @@ def main():
                 feed.setdefault("datetime", "")
                 feed.setdefault("description", "")
                 feed.setdefault("title", "")
+                feed.setdefault("ai-comment", "")
 
             rss = RSSFeeders(feeds, previousrss)
-            newfeeds, feedstofile = rss.get_new_feeders()
-            filerss.set_data(feedstofile)
+            gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
+            
+            # newfeeds, feedstofile = rss.get_new_feeders()
+            newfeeds, feedstofile = rss.get_new_feeders(reader.get_value('openai_key'),
+                                                        gptmodel,
+                                                        200,
+                                                        "it")
 
-            # print(json.dumps(feeds, indent=4, ensure_ascii=False, default=str))
-            print(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+            
+            if newfeeds != []:
+                logger.info("New feeds found:")
+            #     gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
+            #     newfeeds = put_comment(newfeeds,
+            #                             reader.get_value('openai_key'), 
+            #                             gptmodel, 
+            #                             200, 
+            #                             "it")
+
+                # gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
+                # # inserire la procedutra di arricchimento del commento
+                # for feed in newfeeds:
+                #     # print(feed["ai"])
+                #     if feed["ai"] == True:
+                #         gptcomment = ArticleCommentator(feed["link"], 
+                #                                         reader.get_value('openai_key'), 
+                #                                         gptmodel, 
+                #                                         200, 
+                #                                         "it")
+                #         feed["ai-comment"] = gptcomment.generate_comment()
+                #         gptcomment = None
+                    
+                logger.info(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+                filerss.set_data(feedstofile)
+            else:
+                logger.info("No new feeds found.")
 
             logger.info("Waiting 10 minutes before the next execution...")
             time.sleep(600)  # 600 seconds = 10 minutes

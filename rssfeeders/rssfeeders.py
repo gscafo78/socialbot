@@ -5,6 +5,7 @@ import re
 from utils.logger import Logger
 import concurrent.futures
 from datetime import datetime, timedelta
+from gpt.gptcomment import ArticleCommentator
 
 logger = Logger.get_logger(__name__)
 
@@ -131,10 +132,22 @@ class RSSFeeders:
             }
         return None
 
-    def get_new_feeders(self):
+    # def get_new_feeders(self):    
+    def get_new_feeders(self, 
+                        openai_key=None, 
+                        gptmodel=None, 
+                        max_chars=160, 
+                        language="en"):    
+
         """
         Checks all feeds for new items not present in previousrss, using multithreading.
         Removes feeds older than self.retention days from previousrss.
+
+        Args:
+            openai_key (str): OpenAI API key for ArticleCommentator (optional).
+            gptmodel (str): GPT model to use (optional).
+            max_chars (int): Max chars for AI comment (default 160).
+            language (str): Language for AI comment (default "en").
 
         Returns:
             tuple: (newfeeds, previousrss)
@@ -152,6 +165,16 @@ class RSSFeeders:
                 feed['datetime'] = result['datetime']
                 feed['description'] = result['description']
                 feed['title'] = result['title']
+                # Generate AI comment if requested
+                if feed.get("ai") and openai_key and gptmodel:
+                    gptcomment = ArticleCommentator(
+                        feed["link"], 
+                        openai_key, 
+                        gptmodel, 
+                        max_chars, 
+                        language
+                    )
+                    feed["ai-comment"] = gptcomment.generate_comment()
                 logger.info(f"Added new feed: {feed['link']}")
                 return feed
             else:
