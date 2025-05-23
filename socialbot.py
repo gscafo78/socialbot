@@ -3,29 +3,29 @@ import time
 from utils.readjson import JSONReader
 from utils.logger import Logger
 from rssfeeders.rssfeeders import RSSFeeders
-from gpt.gptcomment import ArticleCommentator
+# from gpt.gptcomment import ArticleCommentator
 from gpt.getmodel import GPTModelSelector
 
 # Logger configuration
 logger = Logger.get_logger(__name__)
 
 
-def put_comment(feeds, openai_key, gptmodel, gptmaxchars=200, language="it"):
-    # inserire la procedutra di arricchimento del commento
-    commentend_feeds = []
-    for feed in feeds:
-        # print(feed["ai"])
-        if feed["ai"] == True:
-            gptcomment = ArticleCommentator(feed["link"], 
-                                            openai_key, 
-                                            gptmodel, 
-                                            gptmaxchars, 
-                                            language)
-            feed["ai-comment"] = gptcomment.generate_comment()
-            commentend_feeds.append(feed)
-            gptcomment = None
+# def put_comment(feeds, openai_key, gptmodel, gptmaxchars=200, language="it"):
+#     # inserire la procedutra di arricchimento del commento
+#     commentend_feeds = []
+#     for feed in feeds:
+#         # print(feed["ai"])
+#         if feed["ai"] == True:
+#             gptcomment = ArticleCommentator(feed["link"], 
+#                                             openai_key, 
+#                                             gptmodel, 
+#                                             gptmaxchars, 
+#                                             language)
+#             feed["ai-comment"] = gptcomment.generate_comment()
+#             commentend_feeds.append(feed)
+#             gptcomment = None
     
-    return commentend_feeds
+#     return commentend_feeds
 
 
 def main():
@@ -57,37 +57,19 @@ def main():
                 feed.setdefault("ai-comment", "")
 
             rss = RSSFeeders(feeds, previousrss)
-            gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
+            if reader.get_value('openai')['openai_model'] == "":
+                logger.info("OpenAI model not set. Using auto model.")
+                gptmodel = GPTModelSelector(reader.get_value('openai')['openai_key']).get_cheapest_gpt_model()
+            else:
+                gptmodel = reader.get_value('openai')['openai_model']
             
-            # newfeeds, feedstofile = rss.get_new_feeders()
-            newfeeds, feedstofile = rss.get_new_feeders(reader.get_value('openai_key'),
+            newfeeds, feedstofile = rss.get_new_feeders(reader.get_value('openai')['openai_key'],
                                                         gptmodel,
                                                         200,
                                                         "it")
-
             
             if newfeeds != []:
                 logger.info("New feeds found:")
-            #     gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
-            #     newfeeds = put_comment(newfeeds,
-            #                             reader.get_value('openai_key'), 
-            #                             gptmodel, 
-            #                             200, 
-            #                             "it")
-
-                # gptmodel = GPTModelSelector(reader.get_value('openai_key')).get_cheapest_gpt_model()
-                # # inserire la procedutra di arricchimento del commento
-                # for feed in newfeeds:
-                #     # print(feed["ai"])
-                #     if feed["ai"] == True:
-                #         gptcomment = ArticleCommentator(feed["link"], 
-                #                                         reader.get_value('openai_key'), 
-                #                                         gptmodel, 
-                #                                         200, 
-                #                                         "it")
-                #         feed["ai-comment"] = gptcomment.generate_comment()
-                #         gptcomment = None
-                    
                 logger.info(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
                 filerss.set_data(feedstofile)
             else:
