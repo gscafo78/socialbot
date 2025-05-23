@@ -3,6 +3,8 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import re
 from utils.logger import Logger
+import concurrent.futures
+from datetime import datetime, timedelta
 
 logger = Logger.get_logger(__name__)
 
@@ -19,7 +21,7 @@ class RSSFeeders:
         get_new_feeders(): Returns new feeds not present in previousrss and updates previousrss.
     """
 
-    def __init__(self, feeds, previviousrss):
+    def __init__(self, feeds, previviousrss, retention=10):
         """
         Initialize the RSSFeeders object.
 
@@ -29,7 +31,35 @@ class RSSFeeders:
         """
         self.feeds = feeds
         self.previousrss = previviousrss
+        self.retention = retention
 
+    def remove_old_feeds(self, previousrss):
+        """
+        Removes feeds older than self.retention days from previousrss.
+        Args:
+            previousrss (list): List of previously processed feeds.
+        Returns:
+            list: Updated list of feeds, excluding those older than retention period.
+        """ 
+        now = datetime.now(tz=None)
+        retention_delta = timedelta(days=self.retention)
+        filtered_previousrss = []
+        for feed in previousrss:
+            dt = feed.get('datetime')
+            # Only keep feeds with a valid datetime and within retention period
+            if isinstance(dt, datetime):
+                # Make both datetimes either naive or aware
+                if dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None:
+                    now_cmp = datetime.now(dt.tzinfo)
+                else:
+                    now_cmp = now.replace(tzinfo=None)
+                if now_cmp - dt <= retention_delta:
+                    filtered_previousrss.append(feed)
+            else:
+                # If datetime is missing or invalid, keep the feed (optional: you can skip it)
+                filtered_previousrss.append(feed)
+        return filtered_previousrss
+    
     def html_to_markdown(self, html_text):
         """
         Converts HTML content to Markdown format and removes unwanted "article source" lines.
@@ -103,7 +133,8 @@ class RSSFeeders:
 
     def get_new_feeders(self):
         """
-        Checks all feeds for new items not present in previousrss.
+        Checks all feeds for new items not present in previousrss, using multithreading.
+        Removes feeds older than self.retention days from previousrss.
 
         Returns:
             tuple: (newfeeds, previousrss)
@@ -112,22 +143,34 @@ class RSSFeeders:
         """
         newfeeds = []
         previousrss = self.previousrss
-        for feed in self.feeds:
-            # Get the latest item for the current feed
+
+        def process_feed(feed):
+            """Process a single feed and return updated feed if new, else None."""
             result = self.get_latest_rss(feed['rss'])
-            # Compare using 'link' to avoid duplicates
             if result and not any(f.get('link', '') == result['link'] for f in previousrss):
-                # Update feed dictionary with latest item details
                 feed['link'] = result['link']
                 feed['datetime'] = result['datetime']
                 feed['description'] = result['description']
                 feed['title'] = result['title']
-                newfeeds.append(feed)
-                previousrss.append(feed)
                 logger.info(f"Added new feed: {feed['link']}")
+                return feed
             else:
                 logger.info(f"No new feed found for {feed['rss']}")
-        return newfeeds, previousrss    
+                return None
+
+        # Use ThreadPoolExecutor to process feeds in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = list(executor.map(process_feed, self.feeds))
+
+        # Filter out None results and update lists
+        for feed in results:
+            if feed:
+                newfeeds.append(feed)
+                previousrss.append(feed)
+
+        previousrss = self.remove_old_feeds(previousrss)
+
+        return newfeeds, previousrss
 
 
 def main():

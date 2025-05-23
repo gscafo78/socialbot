@@ -1,10 +1,9 @@
 import json
-import os
 import time
-from datetime import datetime, timedelta
 from utils.readjson import JSONReader
-from rssfeeders.rssfeeders import RSSFeeders
 from utils.logger import Logger
+from rssfeeders.rssfeeders import RSSFeeders
+
 
 # Logger configuration
 logger = Logger.get_logger(__name__)
