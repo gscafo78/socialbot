@@ -2,23 +2,28 @@ import json
 import os
 from utils.logger import Logger
 
-logger = Logger.get_logger(__name__)
-
 class JSONReader:
     """
     Utility class for reading and writing JSON files.
     """
 
-    def __init__(self, file_path, create=False):
+    def __init__(self, file_path, create=False, logger=None, log_level="INFO"):
         """
         Initialize the JSONReader with the path to the JSON file.
 
         Args:
             file_path (str): Path to the JSON file.
             create (bool): If True, create the file with an empty list if it does not exist.
+            logger (logging.Logger): Logger instance (optional).
+            log_level (str): Logging level if logger is not provided (default "INFO").
         """
         self.file_path = file_path
         self.data = None
+        # Use the provided logger or create a new one with the requested level
+        if logger is not None:
+            self.logger = logger
+        else:
+            self.logger = Logger.get_logger(__name__, level=log_level)
         self._read_file(create)
 
     def _read_file(self, create=False):
@@ -33,20 +38,20 @@ class JSONReader:
             with open(self.file_path, "w") as f:
                 json.dump([], f)
             self.data = []
-            logger.info(f"File '{self.file_path}' not found. Created an empty list file.")
+            self.logger.info(f"File '{self.file_path}' not found. Created an empty list file.")
             return
 
         try:
             with open(self.file_path, 'r') as file:
                 self.data = json.load(file)
         except FileNotFoundError:
-            logger.error(f"Error: File '{self.file_path}' not found.")
+            self.logger.error(f"Error: File '{self.file_path}' not found.")
             self.data = None
         except json.JSONDecodeError as e:
-            logger.error(f"Error: Failed to decode JSON. {e}")
+            self.logger.error(f"Error: Failed to decode JSON. {e}")
             self.data = None
         except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
+            self.logger.error(f"An unexpected error occurred: {e}")
             self.data = None
 
     def get_data(self):
@@ -72,7 +77,7 @@ class JSONReader:
         if isinstance(self.data, dict):
             return self.data.get(key, default)
         else:
-            logger.error("Error: JSON data is not a dictionary.")
+            self.logger.error("Error: JSON data is not a dictionary.")
             return default
 
     def set_data(self, data):
@@ -89,9 +94,9 @@ class JSONReader:
             with open(self.file_path, 'w') as file:
                 json.dump(data, file, indent=4, ensure_ascii=False, default=str)
             self.data = data
-            logger.info(f"Data successfully written to '{self.file_path}'.")
+            self.logger.info(f"Data successfully written to '{self.file_path}'.")
         except Exception as e:
-            logger.error(f"Error writing to '{self.file_path}': {e}")
+            self.logger.error(f"Error writing to '{self.file_path}': {e}")
 
     def get_social_credentials(self, social_type, name):
         """
@@ -130,11 +135,11 @@ def main():
     file_path = "/opt/github/03_Script/Python/socialbot/settings.json"  # Replace with your JSON file path
     reader = JSONReader(file_path, create=True)
     data = reader.get_data()
-    logger.info("Full JSON data (pretty print):")
-    logger.info(json.dumps(data, indent=4, ensure_ascii=False))  # Pretty print the JSON
+    reader.logger.info("Full JSON data (pretty print):")
+    reader.logger.info(json.dumps(data, indent=4, ensure_ascii=False))  # Pretty print the JSON
     # Example: try to get the value for key 'rss'
     value = reader.get_value('rss', default="Key not found")
-    logger.info(f"Value for key 'rss': {value}")
+    reader.logger.info(f"Value for key 'rss': {value}")
 
 if __name__ == "__main__":
     main()
