@@ -93,6 +93,27 @@ class JSONReader:
         except Exception as e:
             logger.error(f"Error writing to '{self.file_path}': {e}")
 
+    def get_social_credentials(self, social_type, name):
+        """
+        Returns the token and chat_id (or equivalent) for a given social bot name.
+
+        Args:
+            social_type (str): The social type, e.g. "telegram" or "bluesky".
+            name (str): The bot name to search for.
+
+        Returns:
+            tuple: (token, chat_id) if found, otherwise (None, None)
+        """
+        social_list = self.get_value("social", [])
+        for entry in social_list:
+            if social_type in entry:
+                for bot in entry[social_type]:
+                    if bot.get("name") == name:
+                        token = bot.get("token")
+                        chat_id = bot.get("chat_id")
+                        return token, chat_id
+        return None, None
+
 # Example usage
 def main():
     """

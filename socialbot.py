@@ -4,6 +4,7 @@ from utils.readjson import JSONReader
 from utils.logger import Logger
 from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
+from senders.telegramsendmsg import TelegramBotPublisher
 
 def main():
     # --- Configuration file path ---
@@ -67,9 +68,27 @@ def main():
             )
             
             if newfeeds != []:
-                logger.info("New feeds found:")
-                logger.info(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+                
+                logger.debug("New feeds found:")
+                logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+                
+                logger.debug("Sending new feeds to Telegram...")
+                
+                for feed in feeds:
+                    for bot in feed["telegram"]["bots"]:
+                        token, chat_id = reader.get_social_credentials("telegram", bot)
+                        logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
+                        logger.debug(f"{feed['title']}\n{feed['description']}\n{feed['link']}")
+                        telebot = TelegramBotPublisher(token, chat_id)
+                        telebot.send_message(f"{feed['title']}\n{feed['description']}\n{feed['link']}")
+                
+
+
+
                 filerss.set_data(feedstofile)
+                logger.debug(f"New feeds saved to {logfile}.")
+
+
             else:
                 logger.info("No new feeds found.")
 

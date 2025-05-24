@@ -227,7 +227,7 @@ def main():
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
     newfeeds, updated_previousrss = rss.get_new_feeders()
-    print(newfeeds)
+    print(newfeeds, updated_previousrss)
 
 if __name__ == "__main__":
     main()
