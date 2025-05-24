@@ -1,13 +1,10 @@
 import feedparser
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import re
 from utils.logger import Logger
 import concurrent.futures
-from datetime import datetime, timedelta
 from gpt.gptcomment import ArticleCommentator
-
-logger = Logger.get_logger(__name__)
 
 class RSSFeeders:
     """
@@ -16,32 +13,47 @@ class RSSFeeders:
     Args:
         feeds (list): List of feed dictionaries (each with at least a 'rss' key).
         previousrss (list): List of previously processed feeds (to avoid duplicates).
+        retention (int): Number of days to retain old feeds (default 10).
+        logger (logging.Logger): Logger instance (optional).
+        log_level (str): Logging level if logger is not provided (default "INFO").
 
     Methods:
         get_latest_rss(url): Returns a dictionary with link, datetime, description, and title of the latest item.
-        get_new_feeders(): Returns new feeds not present in previousrss and updates previousrss.
+        get_new_feeders(...): Returns new feeds not present in previousrss and updates previousrss.
+        remove_old_feeds(previousrss): Removes feeds older than retention days.
+        html_to_markdown(html_text): Converts HTML to Markdown.
     """
 
-    def __init__(self, feeds, previviousrss, retention=10):
+    def __init__(self, feeds, previviousrss, retention=10, logger=None, log_level="INFO"):
         """
         Initialize the RSSFeeders object.
 
         Args:
             feeds (list): List of feed dictionaries.
             previviousrss (list): List of previously processed feeds.
+            retention (int): Number of days to retain old feeds.
+            logger (logging.Logger): Logger instance (optional).
+            log_level (str): Logging level if logger is not provided.
         """
         self.feeds = feeds
         self.previousrss = previviousrss
         self.retention = retention
+        # Use the provided logger or create a new one with the requested level
+        if logger is not None:
+            self.logger = logger
+        else:
+            self.logger = Logger.get_logger(__name__, level=log_level)
 
     def remove_old_feeds(self, previousrss):
         """
         Removes feeds older than self.retention days from previousrss.
+
         Args:
             previousrss (list): List of previously processed feeds.
+
         Returns:
             list: Updated list of feeds, excluding those older than retention period.
-        """ 
+        """
         now = datetime.now(tz=None)
         retention_delta = timedelta(days=self.retention)
         filtered_previousrss = []
@@ -60,7 +72,7 @@ class RSSFeeders:
                 # If datetime is missing or invalid, keep the feed (optional: you can skip it)
                 filtered_previousrss.append(feed)
         return filtered_previousrss
-    
+
     def html_to_markdown(self, html_text):
         """
         Converts HTML content to Markdown format and removes unwanted "article source" lines.
@@ -132,13 +144,7 @@ class RSSFeeders:
             }
         return None
 
-    # def get_new_feeders(self):    
-    def get_new_feeders(self, 
-                        openai_key=None, 
-                        gptmodel=None, 
-                        max_chars=160, 
-                        language="en"):    
-
+    def get_new_feeders(self, openai_key=None, gptmodel=None, max_chars=160, language="en"):
         """
         Checks all feeds for new items not present in previousrss, using multithreading.
         Removes feeds older than self.retention days from previousrss.
@@ -158,7 +164,15 @@ class RSSFeeders:
         previousrss = self.previousrss
 
         def process_feed(feed):
-            """Process a single feed and return updated feed if new, else None."""
+            """
+            Process a single feed and return updated feed if new, else None.
+
+            Args:
+                feed (dict): Feed dictionary.
+
+            Returns:
+                dict or None: Updated feed dict if new, else None.
+            """
             result = self.get_latest_rss(feed['rss'])
             if result and not any(f.get('link', '') == result['link'] for f in previousrss):
                 feed['link'] = result['link']
@@ -175,10 +189,10 @@ class RSSFeeders:
                         language
                     )
                     feed["ai-comment"] = gptcomment.generate_comment()
-                logger.info(f"Added new feed: {feed['link']}")
+                self.logger.info(f"Added new feed: {feed['link']}")
                 return feed
             else:
-                logger.info(f"No new feed found for {feed['rss']}")
+                self.logger.info(f"No new feed found for {feed['rss']}")
                 return None
 
         # Use ThreadPoolExecutor to process feeds in parallel
@@ -195,22 +209,25 @@ class RSSFeeders:
 
         return newfeeds, previousrss
 
-
+# Example usage
 def main():
     """
     Example usage:
     Fetches and prints the latest RSS item from the given feed URL.
+
+    Usage:
+        feeds = [{"rss": "https://www.cshub.com/rss/articles"}]
+        previousrss = []
+        rss = RSSFeeders(feeds, previousrss)
+        newfeeds, updated_previousrss = rss.get_new_feeders()
+        print(newfeeds)
     """
     rss_url = "https://www.cshub.com/rss/articles"
-    # rss = RSSLatestItem(rss_url)
-    # result = rss.get_latest_rss()
-    # if result:
-    #     print(f"Link: {result['link']}")
-    #     print(f"Datetime: {result['datetime']}")
-    #     print(f"Description:\n{result['description']}")
-    #     print(f"Title: {result['title']}")
-    # else:
-    #     print("No items found.")
+    feeds = [{"rss": rss_url}]
+    previousrss = []
+    rss = RSSFeeders(feeds, previousrss)
+    newfeeds, updated_previousrss = rss.get_new_feeders()
+    print(newfeeds)
 
 if __name__ == "__main__":
     main()

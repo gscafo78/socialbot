@@ -44,6 +44,8 @@ class ArticleCommentator:
         The comment is written in the language specified during initialization.
         """
         article_text = self.extract_text()
+        if not article_text.strip():
+            return ""
         if self.language == "en":
             answare = "English"
         elif self.language == "it":
