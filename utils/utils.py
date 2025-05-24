@@ -29,6 +29,10 @@ class MuteTimeChecker:
             mute_from_time = datetime.strptime(self.mute_from, "%H:%M").time()
             mute_to_time = datetime.strptime(self.mute_to, "%H:%M").time()
 
+            # Special case: mute_from == mute_to means never mute
+            if mute_from_time == mute_to_time:
+                return False
+
             if mute_from_time < mute_to_time:
                 return mute_from_time <= now <= mute_to_time
             else:

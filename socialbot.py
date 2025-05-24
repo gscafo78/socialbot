@@ -34,6 +34,7 @@ def main():
     gptmodel = reader.get_value('openai', {}).get('openai_model', 'gpt-4.1-nano')
     mutefrom = reader.get_value('settings', {}).get('mute', {}).get('from', '00:00')
     muteto = reader.get_value('settings', {}).get('mute', {}).get('to', '00:00')
+    mute = MuteTimeChecker(mutefrom, muteto, logger=logger)
 
     # --- Select GPT model ---
     if gptmodel == "auto" :
@@ -43,7 +44,7 @@ def main():
     logger.debug(f"File setting path: {file_path}")
     logger.info(f"Log file path: {logfile}")
     logger.info(f"Feed update interval by cron: {cron}")
-    logger.info(f"Mute from: {mutefrom}, to: {muteto}")
+    logger.info(f"Mute is {mute.is_mute_time()}, because is from: {mutefrom}, to: {muteto}")
     logger.info(f"OpenAI model: {gptmodel}")
     logger.info(f"OpenAI comment max chars: {openai_comment_max_chars}")
     logger.info(f"OpenAI comment language: {openai_comment_language}")
@@ -53,7 +54,6 @@ def main():
             iter_cron = croniter(cron, base_time)
             next_run = iter_cron.get_next(datetime)
             sleep_time = (next_run - datetime.now()).total_seconds()
-            mute = MuteTimeChecker(mutefrom, muteto, logger=logger)
             if not mute.is_mute_time():
                 # --- Load previous RSS data ---
                 filerss = JSONReader(logfile, create=True, logger=logger)
