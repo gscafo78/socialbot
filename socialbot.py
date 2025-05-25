@@ -9,9 +9,25 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
 from senders.telegramsendmsg import TelegramBotPublisher
 
+
+def send_feed_to_telegram(feed, reader, logger):
+    """
+    Send a single feed to all configured Telegram bots.
+    """
+    bots = feed.get("telegram", {}).get("bots", [])
+    for bot in bots:
+        token, chat_id = reader.get_social_credentials("telegram", bot)
+        logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
+        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+        telebot = TelegramBotPublisher(token, chat_id)
+        telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+
+
+
 def main():
     # --- Configuration file path ---
     file_path = "/opt/github/03_Script/Python/socialbot/settings.json"
+    
     
     # --- Logger setup ---
     log_level_str = "INFO"
@@ -21,9 +37,14 @@ def main():
     
     log_level_str = reader.get_value('settings', {}).get('log_level', 'INFO')
     logger = Logger.get_logger(__name__, level=log_level_str)
+    
 
     # Re-initialize reader with the correct logger if needed
     reader = JSONReader(file_path, logger=logger)
+    feeds_path = reader.get_value('settings', {}).get('feeds_file', "/opt/github/03_Script/Python/socialbot/feeds.json")
+    
+    readfeeds = JSONReader(feeds_path, logger=logger)
+
 
     # --- Log file and update interval ---
     logfile = reader.get_value('settings', {}).get('log_file', '/var/log/socialbot.log').lower()
@@ -42,6 +63,7 @@ def main():
         gptmodel = GPTModelSelector(reader.get_value('openai')['openai_key']).get_cheapest_gpt_model()
     
     logger.debug(f"File setting path: {file_path}")
+    logger.info(f"Feeds file path: {feeds_path}")
     logger.info(f"Log file path: {logfile}")
     logger.info(f"Feed update interval by cron: {cron}")
     logger.info(f"Mute is {mute.is_mute_time()}, because is from: {mutefrom}, to: {muteto}")
@@ -61,7 +83,7 @@ def main():
                 logger.debug("Full JSON data loaded from log file.")
 
                 # --- Load feeds from config ---
-                feeds = reader.get_value('feeds', default=[])
+                feeds = readfeeds.get_data()
                 logger.debug(f"Value for key 'feeds': {feeds}")
                 newfeeds = []
                 feedstofile = []
@@ -85,17 +107,13 @@ def main():
                     openai_comment_language
                 )
                 
-                if newfeeds != []:
+                if newfeeds:
                     logger.debug("New feeds found:")
                     logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
-                    logger.debug("Sending new feeds to Telegram...")
-                    for feed in feeds:
-                        for bot in feed["telegram"]["bots"]:
-                            token, chat_id = reader.get_social_credentials("telegram", bot)
-                            logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
-                            logger.debug(f"{feed['title']}\n{feed['description']}\n{feed['link']}")
-                            telebot = TelegramBotPublisher(token, chat_id)
-                            telebot.send_message(f"{feed['title']}\n{feed['description']}\n{feed['link']}")
+                    for feed in newfeeds:
+                        logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
+                        send_feed_to_telegram(feed, reader, logger)
+                        
                     filerss.set_data(feedstofile)
                     logger.debug(f"New feeds saved to {logfile}.")
                 else:
@@ -109,6 +127,7 @@ def main():
             time.sleep(sleep_time)  
     except KeyboardInterrupt:
         logger.info("Manual interruption received. Exiting program.")
+
 
 if __name__ == "__main__":
     main()
