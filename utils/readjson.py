@@ -100,24 +100,36 @@ class JSONReader:
 
     def get_social_credentials(self, social_type, name):
         """
-        Returns the token and chat_id (or equivalent) for a given social bot name.
+        Returns the credentials for a given social bot name.
 
         Args:
             social_type (str): The social type, e.g. "telegram" or "bluesky".
             name (str): The bot name to search for.
 
         Returns:
-            tuple: (token, chat_id) if found, otherwise (None, None)
+            tuple:
+                - For "telegram": (token, chat_id, None)
+                - For "bluesky": (handle, password, service)
+                - If not found: (None, None, None)
         """
         social_list = self.get_value("social", [])
         for entry in social_list:
             if social_type in entry:
-                for bot in entry[social_type]:
-                    if bot.get("name") == name:
-                        token = bot.get("token")
-                        chat_id = bot.get("chat_id")
-                        return token, chat_id
-        return None, None
+                if social_type == "telegram":
+                    for bot in entry[social_type]:
+                        if bot.get("name") == name:
+                            token = bot.get("token")
+                            chat_id = bot.get("chat_id")
+                            return token, chat_id, None
+                elif social_type == "bluesky":
+                    for bot in entry[social_type]:
+                        if bot.get("name") == name:
+                            handle = bot.get("handle")
+                            password = bot.get("password")
+                            service = bot.get("service", "https://bsky.social")
+                            return handle, password, service
+        self.logger.error(f"Error: No credentials found for {social_type} bot named '{name}'.")
+        return None, None, None
 
 # Example usage
 def main():

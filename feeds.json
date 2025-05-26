@@ -6,7 +6,7 @@
             "bots": ["cicinabot"]
         },
         "bluesky": {
-            "bots": ["gscafo78"]
+            "bots": ["gscafo"]
         }
     },
     {
@@ -14,9 +14,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -24,9 +21,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -34,9 +28,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -44,19 +35,14 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
+
     },
     {
         "rss": "https://www.cybersecurity-insiders.com/feed/",
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -64,9 +50,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -74,9 +57,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -84,9 +64,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot", "gs_financebot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -94,9 +71,6 @@
         "ai": false,
         "telegram": {
             "bots": ["cicinabot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -104,9 +78,6 @@
         "ai": false,
         "telegram": {
             "bots": ["gs_financebot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -114,9 +85,6 @@
         "ai": false,
         "telegram": {
             "bots": ["gs_financebot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     },
     {
@@ -124,9 +92,6 @@
         "ai": false,
         "telegram": {
             "bots": ["gs_financebot"]
-        },
-        "bluesky": {
-            "bots": ["gscafo78"]
         }
     }
 ]

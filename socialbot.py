@@ -8,6 +8,7 @@ from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
 from senders.telegramsendmsg import TelegramBotPublisher
+from senders.blueskysendmsg import BlueskyPoster
 
 
 def send_feed_to_telegram(feed, reader, logger):
@@ -16,13 +17,29 @@ def send_feed_to_telegram(feed, reader, logger):
     """
     bots = feed.get("telegram", {}).get("bots", [])
     for bot in bots:
-        token, chat_id = reader.get_social_credentials("telegram", bot)
+        logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
+        token, chat_id, _ = reader.get_social_credentials("telegram", bot)
         logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
         logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
         telebot = TelegramBotPublisher(token, chat_id)
         telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
 
-
+def send_feed_to_bluesky(feed, reader, logger):
+    """
+    Send a single feed to all configured Bluesky bots.
+    """
+    bots = feed.get("bluesky", {}).get("bots", [])
+    for bot in bots:
+        logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
+        handle, password, service = reader.get_social_credentials("bluesky", bot)
+        logger.debug(f"BlueskyBotPublisher initialized with Handel {handle}, password {password} and service {service}.")
+        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+        blueskybot = BlueskyPoster(handle, password, service)
+        try:
+            response = blueskybot.post_with_preview(feed.get('title', ''), feed.get('link', ''))
+            logger.debug(f"Server response: {response}")
+        except Exception as e:
+            logger.error("Error while posting:", e)
 
 def main():
     # --- Configuration file path ---
@@ -111,9 +128,9 @@ def main():
                     logger.debug("New feeds found:")
                     logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
                     for feed in newfeeds:
-                        logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
                         send_feed_to_telegram(feed, reader, logger)
-                        
+                        send_feed_to_bluesky(feed, reader, logger)
+
                     filerss.set_data(feedstofile)
                     logger.debug(f"New feeds saved to {logfile}.")
                 else:
