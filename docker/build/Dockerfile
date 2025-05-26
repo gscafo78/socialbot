@@ -3,7 +3,7 @@ FROM python:3.12-alpine
 
 # Install required package
 RUN apk update && \
-    apk add --no-cache tzdata curl
+    apk add --no-cache tzdata curl git
 
 # Improve container logging
 ENV PYTHONUNBUFFERED=1 \
