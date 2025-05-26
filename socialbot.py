@@ -9,6 +9,8 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
 from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
+import sys
+import argparse
 
 
 def send_feed_to_telegram(feed, reader, logger):
@@ -42,17 +44,29 @@ def send_feed_to_bluesky(feed, reader, logger):
             logger.error("Error while posting:", e)
 
 def main():
+    # --- Parse command line arguments ---
+    parser = argparse.ArgumentParser(description="SocialBot main runner")
+    parser.add_argument(
+        "-c", "--config",
+        dest="config_path",
+        default="./settings.json",
+        help="Path to configuration file (default: ./settings.json)"
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (DEBUG) logging"
+    )
+    args = parser.parse_args()
+
     # --- Configuration file path ---
-    file_path = "/opt/github/03_Script/Python/socialbot/settings.json"
-    
-    
+    file_path = args.config_path
+
     # --- Logger setup ---
-    log_level_str = "INFO"
-    # Temporary logger for config reading
+    log_level_str = 'DEBUG' if args.verbose else "INFO"
     temp_logger = Logger.get_logger(__name__, level=log_level_str)
     reader = JSONReader(file_path, logger=temp_logger)
-    
-    log_level_str = reader.get_value('settings', {}).get('log_level', 'INFO')
+    log_level_str = 'DEBUG' if args.verbose else reader.get_value('settings', {}).get('log_level', 'INFO')
     logger = Logger.get_logger(__name__, level=log_level_str)
     
 
