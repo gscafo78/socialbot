@@ -36,7 +36,7 @@ def send_feed_to_bluesky(feed, reader, logger):
         logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
         blueskybot = BlueskyPoster(handle, password, service)
         try:
-            response = blueskybot.post_with_preview(feed.get('title', ''), feed.get('link', ''))
+            response = blueskybot.post_with_preview(feed.get('ai-comment', ''), feed.get('link', ''))
             logger.debug(f"Server response: {response}")
         except Exception as e:
             logger.error("Error while posting:", e)
@@ -114,7 +114,10 @@ def main():
                     feed.setdefault("ai-comment", "")
 
                 # --- Initialize RSSFeeders with logger ---
-                rss = RSSFeeders(feeds, previousrss, logger=logger)
+                rss = RSSFeeders(feeds, 
+                                 previousrss, 
+                                 retention=reader.get_value('settings')['days_of_retention'], 
+                                 logger=logger)
 
                 # --- Get new feeds and update file ---
                 newfeeds, feedstofile = rss.get_new_feeders(

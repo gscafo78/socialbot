@@ -22,7 +22,7 @@ class MuteTimeChecker:
 
     def is_mute_time(self) -> bool:
         """
-        Returns True if the current time is within the mute interval, False otherwise.
+        Returns True if the current time is OUTSIDE the mute interval, False otherwise.
         """
         try:
             now = datetime.now().time()
@@ -31,12 +31,12 @@ class MuteTimeChecker:
 
             # Special case: mute_from == mute_to means never mute
             if mute_from_time == mute_to_time:
-                return False
+                return True
 
             if mute_from_time < mute_to_time:
-                return mute_from_time <= now <= mute_to_time
+                return not (mute_from_time <= now <= mute_to_time)
             else:
-                return now >= mute_from_time or now <= mute_to_time
+                return not (now >= mute_from_time or now <= mute_to_time)
         except ValueError as e:
             self.logger.error(f"Error parsing mute times: {e}")
-            return False
+            return True

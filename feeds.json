@@ -1,9 +1,19 @@
 [
     {
         "rss": "https://www.cybersecurity360.it/feed/",
-        "ai": false,
+        "ai": true,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
+        },
+        "bluesky": {
+            "bots": ["gscafo"]
+        }
+    },
+    {
+        "rss": "https://www.redhotcyber.com/feed/gn",
+        "ai": true,
+        "telegram": {
+            "bots": ["gs_cyberbot"]
         },
         "bluesky": {
             "bots": ["gscafo"]
@@ -13,64 +23,75 @@
         "rss": "https://www.ictsecuritymagazine.com/feed/",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
         }
     },
     {
         "rss": "https://8bitsecurity.com/feed/",
-        "ai": false,
+        "ai": true,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
+        },
+        "bluesky": {
+            "bots": ["gscafo"]
         }
     },
     {
         "rss": "https://feeds.feedburner.com/TheHackersNews",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
+        },
+        "bluesky": {
+            "bots": ["gscafo"]
         }
     },
     {
         "rss": "https://www.cshub.com/rss/articles",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
+        },
+        "bluesky": {
+            "bots": ["gscafo"]
         }
-
     },
     {
         "rss": "https://www.cybersecurity-insiders.com/feed/",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
         }
     },
     {
         "rss": "https://www.securityweek.com/rss",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
+        },
+        "bluesky": {
+            "bots": ["gscafo"]
         }
     },
     {
         "rss": "https://www.darkreading.com/rss.xml",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_cyberbot"]
         }
     },
     {
         "rss": "https://it.investing.com/rss/news_25.rss",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot", "gs_financebot"]
+            "bots": ["gs_financebot"]
         }
     },
     {
         "rss": "https://www.ilfattoquotidiano.it/feed/",
         "ai": false,
         "telegram": {
-            "bots": ["cicinabot"]
+            "bots": ["gs_newsbot"]
         }
     },
     {
