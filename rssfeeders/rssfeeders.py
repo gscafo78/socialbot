@@ -106,6 +106,7 @@ class RSSFeeders:
     def get_latest_rss(self, url):
         """
         Parses the RSS feed and returns the latest item's details.
+        Discards the item if it is older than self.retention days.
 
         Args:
             url (str): The RSS feed URL.
@@ -117,7 +118,7 @@ class RSSFeeders:
                 "description": str (Markdown),
                 "title": str
             }
-            or None if no items are found.
+            or None if no items are found or if the item is too old.
         """
         feed = feedparser.parse(url)
         if feed.entries:
@@ -136,6 +137,14 @@ class RSSFeeders:
                 date_time_dt = datetime.strptime(date_time, '%a, %d %b %Y %H:%M:%S %z')
             except (ValueError, TypeError):
                 date_time_dt = None
+
+            # Discard if the item is older than self.retention days
+            if date_time_dt:
+                now = datetime.now(date_time_dt.tzinfo) if date_time_dt.tzinfo else datetime.now()
+                if (now - date_time_dt) > timedelta(days=self.retention):
+                    self.logger.info(f"Feed item from {url} is older than retention ({self.retention} days), skipping.")
+                    return None
+
             return {
                 "link": link,
                 "datetime": date_time_dt,

@@ -19,6 +19,7 @@ venv.bak/
 # Config file
 settings.json
 feeds.json
+socialbot.log
 
 # General
 .DS_Store

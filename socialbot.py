@@ -9,7 +9,6 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
 from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
-import sys
 import argparse
 
 
@@ -34,14 +33,16 @@ def send_feed_to_bluesky(feed, reader, logger):
     for bot in bots:
         logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
         handle, password, service = reader.get_social_credentials("bluesky", bot)
-        logger.debug(f"BlueskyBotPublisher initialized with Handel {handle}, password {password} and service {service}.")
+        logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
         logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
         blueskybot = BlueskyPoster(handle, password, service)
         try:
             response = blueskybot.post_with_preview(feed.get('ai-comment', ''), feed.get('link', ''))
             logger.debug(f"Server response: {response}")
         except Exception as e:
-            logger.error("Error while posting:", e)
+            logger.error(f"Error while posting: {e}")
+            # oppure, per loggare anche lo stacktrace:
+            # logger.exception("Error while posting:")
 
 def main():
     # --- Parse command line arguments ---
@@ -78,7 +79,7 @@ def main():
 
 
     # --- Log file and update interval ---
-    logfile = reader.get_value('settings', {}).get('log_file', '/var/log/socialbot.log').lower()
+    logfile = reader.get_value('settings', {}).get('log_file', '/var/log/socialbot.log')
     base_time = datetime.now()
     cron = reader.get_value('settings', {}).get('cron', '0 * * * *')  # Default: every hour
     openai_comment_max_chars = reader.get_value('openai', {}).get('openai_comment_max_chars', 160) 
@@ -156,9 +157,12 @@ def main():
             
             
             # --- Wait before next execution ---
+            if sleep_time < 0:
+                logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
+                sleep_time = 1
             logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
             base_time = datetime.now()
-            time.sleep(sleep_time)  
+            time.sleep(sleep_time)
     except KeyboardInterrupt:
         logger.info("Manual interruption received. Exiting program.")
 
