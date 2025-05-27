@@ -1,0 +1,13 @@
+services:
+  socialbot:
+    build:
+      context: ../build
+      dockerfile: Dockerfile
+    container_name: socialbot
+    volumes:
+      - ./settings.json:/app/settings.json
+      - ./feeds.json:/app/feeds.json
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
