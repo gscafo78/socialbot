@@ -1,2 +1,0 @@
-OneDrive è ormai uno degli strumenti di archiviazione cloud più utilizzati in ambito aziendale. Negli ultimi giorni, alcune voci online hanno sollevato preoccupazioni riguardo a una presunta funzionalità, prevista per giugno 2025, che permetterebbe la sincronizzazione automatica tra account personali e aziendali. Ma è davvero così? Nell'articolo di oggi facciamo chiarezza su questa nuova funzionalità.
-Title: OneDrive sincronizzerà in automatico account aziendale e personale? Facciamo chiarezza
