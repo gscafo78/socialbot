@@ -1,7 +1,7 @@
 services:
   socialbot:
     build:
-      context: ../build
+      context: ./build
       dockerfile: Dockerfile
     container_name: socialbot
     volumes:
