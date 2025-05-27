@@ -18,8 +18,13 @@ RUN git clone https://github.com/gscafo78/socialbot.git /app
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# (Opzionale) Se vuoi sovrascrivere/aggiungere file locali:
+# Copy the entrypoint script into the container
+COPY docker/build/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# (Optional) Copy other local files if needed
 # COPY app/ .
 
-# Specify the command to run the application
-CMD ["python", "main.py"]
+# Use the entrypoint script to check/copy config files and run the app
+ENTRYPOINT ["/app/entrypoint.sh"]
+
