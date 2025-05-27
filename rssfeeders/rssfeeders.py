@@ -142,7 +142,7 @@ class RSSFeeders:
             if date_time_dt:
                 now = datetime.now(date_time_dt.tzinfo) if date_time_dt.tzinfo else datetime.now()
                 if (now - date_time_dt) > timedelta(days=self.retention):
-                    self.logger.info(f"Feed item from {url} is older than retention ({self.retention} days), skipping.")
+                    self.logger.debug(f"Feed item from {url} is older than retention ({self.retention} days), skipping.")
                     return None
 
             return {
@@ -201,7 +201,7 @@ class RSSFeeders:
                 self.logger.info(f"Added new feed: {feed['link']}")
                 return feed
             else:
-                self.logger.info(f"No new feed found for {feed['rss']}")
+                self.logger.debug(f"No new feed found for {feed['rss']}")
                 return None
 
         # Use ThreadPoolExecutor to process feeds in parallel
