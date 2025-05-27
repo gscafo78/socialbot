@@ -18,6 +18,7 @@ venv.bak/
 
 # Config file
 settings.json
+feeds.json
 
 # General
 .DS_Store

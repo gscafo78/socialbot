@@ -1,8 +1,52 @@
 {
-    "openai_key": "Put here your OpenAI API key",
-    "rss": ["https://www.cybersecurity360.it/feed/",
-            "https://www.ictsecuritymagazine.com/feed/",
-            "https://8bitsecurity.com/feed/",
-            "https://www.hackingnews.com/feed/"],
-    "telegram": {}
+    "settings": {
+        "log_level": "DEBUG",
+        "log_file": "/var/log/socialbot.log",
+        "feeds_file": "path of feeds.json",
+        "days_of_retention": 5,
+        "cron": "*/10 * * * 1-5", 
+        "mute": {
+            "from": "08:00",
+            "to": "22:00"
+    }
+
+    },
+    "openai": {
+        "openai_key": "Open AI Key",
+        "openai_model": "gpt-4.1-nano",
+        "openai_comment_max_chars": 200,
+        "openai_comment_language": "en"
+    },
+    "social": [
+        {
+            "telegram": [
+                {
+                    "name": "Nome Of Bot",
+                    "token": "token_of_bot",
+                    "chat_id": "chat_id_to_send_messages"
+                },
+                {
+                    "name": "Nome Of Bot",
+                    "token": "token_of_bot",
+                    "chat_id": "chat_id_to_send_messages"
+                }
+            ]
+        },
+        {
+            "bluesky": [
+                {
+                    "name": "Username",
+                    "handle": "username.bsky.social",
+                    "password": "YourPassword",
+                    "service": "https://bsky.social"
+                },
+                {
+                    "name": "Username",
+                    "handle": "username.bsky.social",
+                    "password": "YourPassword",
+                    "service": "https://bsky.social"
+                }
+            ]
+        }
+    ]
 }
