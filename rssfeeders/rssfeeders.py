@@ -2,6 +2,9 @@ import feedparser
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import re
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 import concurrent.futures
 from gpt.gptcomment import ArticleCommentator
@@ -105,7 +108,7 @@ class RSSFeeders:
 
     def get_latest_rss(self, url):
         """
-        Parses the RSS feed and returns the latest item's details.
+        Parses the RSS feed and returns the latest item's details based on pubDate/published.
         Discards the item if it is older than self.retention days.
 
         Args:
@@ -122,21 +125,30 @@ class RSSFeeders:
         """
         feed = feedparser.parse(url)
         if feed.entries:
-            latest = feed.entries[0]
-            link = latest.link
-            description = latest.description if 'description' in latest else ''
-            # Clean and convert description to Markdown if it contains HTML
+            # Find the entry with the most recent pubDate/published
+            def parse_date(entry):
+                date_str = entry.get('published', '') or entry.get('updated', '') or entry.get('pubDate', '')
+                for fmt in ('%a, %d %b %Y %H:%M:%S %z', '%Y-%m-%dT%H:%M:%SZ'):
+                    try:
+                        return datetime.strptime(date_str, fmt)
+                    except Exception:
+                        continue
+                return None
+
+            # Filter entries with a valid date
+            dated_entries = [(entry, parse_date(entry)) for entry in feed.entries]
+            dated_entries = [(e, dt) for e, dt in dated_entries if dt is not None]
+            if not dated_entries:
+                return None
+
+            # Get the most recent entry
+            latest_entry, date_time_dt = max(dated_entries, key=lambda x: x[1])
+
+            link = latest_entry.link
+            description = latest_entry.description if 'description' in latest_entry else ''
             if "<" in description and ">" in description:
                 description = self.html_to_markdown(description)
-            title = latest.title if 'title' in latest else ''
-            date_time = latest.published if 'published' in latest else ''
-            if not date_time and 'updated' in latest:
-                date_time = latest.updated
-            # Try to parse the date string to a datetime object
-            try:
-                date_time_dt = datetime.strptime(date_time, '%a, %d %b %Y %H:%M:%S %z')
-            except (ValueError, TypeError):
-                date_time_dt = None
+            title = latest_entry.title if 'title' in latest_entry else ''
 
             # Discard if the item is older than self.retention days
             if date_time_dt:
@@ -231,7 +243,7 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://www.cshub.com/rss/articles"
+    rss_url = "https://www.affaritaliani.it/static/rss/rssGadget.aspx?idchannel=1"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
