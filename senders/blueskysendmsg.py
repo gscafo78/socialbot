@@ -307,8 +307,8 @@ if __name__ == "__main__":
     # Replace these values with your Bluesky credentials and desired post
     text = "Il consiglio d'amministrazione di Stellantis ha scelto il 51enne napoletano Antonio Filosa come suo nuovo Ceo: da 25 anni in Fiat, è stato Chief Executive Officer dell'Americhe e capo del marchio Jeep, rimpiazzerà il dimissionario Carlos Tavares."
     link = "https://www.fanpage.it/attualita/chi-e-antonio-filosa-il-nuovo-ceo-di-stellantis-dagli-inizi-in-fiat-fino-al-vertice-di-jeep/"
-    user = "gs-fanpage-bot.bsky.social"
-    password = "Can8d1g0mm4!"
+    user = "XXXXXXXXX.bsky.social"
+    password = "XXXXXXXXXXXXXXXXXXX"  # Replace with your app password
     service = "https://bsky.social"
     
     poster = BlueskyPoster(user, password, service)
