@@ -122,7 +122,8 @@ def main():
             iter_cron = croniter(cron, base_time)
             next_run = iter_cron.get_next(datetime)
             sleep_time = (next_run - datetime.now()).total_seconds()
-            if not mute.is_mute_time():
+            ismute = mute.is_mute_time()
+            if not ismute:
                 # --- Load previous RSS data ---
                 filerss = JSONReader(logfile, create=True, logger=logger)
                 previousrss = filerss.get_data()
@@ -174,7 +175,9 @@ def main():
             if sleep_time < 0:
                 logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
                 sleep_time = 0
-            logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
+            if not ismute:
+                logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
+            
             base_time = datetime.now()
             time.sleep(sleep_time)
     except KeyboardInterrupt:
