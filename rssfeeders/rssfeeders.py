@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 import concurrent.futures
 from gpt.gptcomment import ArticleCommentator
+import requests
 
 class RSSFeeders:
     """
@@ -123,7 +124,15 @@ class RSSFeeders:
             }
             or None if no items are found or if the item is too old.
         """
-        feed = feedparser.parse(url)
+        headers = {'User-Agent': 'Mozilla/5.0 (compatible; MyFeedReader/1.0)'}
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
+        except Exception as e:
+            self.logger.error(f"Error fetching or parsing feed {url}: {e}")
+            return None
+
         if feed.entries:
             # Find the entry with the most recent pubDate/published
             def parse_date(entry):
@@ -243,7 +252,7 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://www.affaritaliani.it/static/rss/rssGadget.aspx?idchannel=1"
+    rss_url = "https://www.fanpage.it/feed/"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)

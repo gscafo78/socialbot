@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # Replace these values with your Bluesky credentials and desired post
     text = "Here is the link to the Bluesky site:"
     link = "https://www.example.com"        # Replace with the URL you want to preview
-    user = "gs-affaritaliani.bsky.social"         # Your handle
+    user = "gs-fanpage-bot.bsky.social"         # Your handle
     password = "Can8d1g0mm4!"              # Your app password
     service = "https://bsky.social"         # Your service URL (default: https://bsky.social)
 
