@@ -11,7 +11,7 @@ from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 import argparse
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 def send_feed_to_telegram(feed, reader, logger):
     """
@@ -117,13 +117,14 @@ def main():
     logger.info(f"OpenAI comment language: {openai_comment_language}")
 
     try:
+        mute_logged = False  # Track if mute message has already been logged
         while True:
             # Calculate next run time using cron expression
             iter_cron = croniter(cron, base_time)
             next_run = iter_cron.get_next(datetime)
             sleep_time = (next_run - datetime.now()).total_seconds()
-            ismute = mute.is_mute_time()
-            if not ismute:
+            if not mute.is_mute_time():
+                mute_logged = False  # Reset when not in mute
                 # --- Load previous RSS data ---
                 filerss = JSONReader(logfile, create=True, logger=logger)
                 previousrss = filerss.get_data()
@@ -170,14 +171,18 @@ def main():
                     logger.debug(f"New feeds saved to {logfile}.")
                 else:
                     logger.info("No new feeds found.")
+            else:
+                if not mute_logged:
+                    logger.info("Mute time, skipping feed update.")
+                    mute_logged = True
 
             # --- Wait before next execution ---
             if sleep_time < 0:
                 logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
                 sleep_time = 0
-            if not ismute:
+            if not mute.is_mute_time():
                 logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
-            
+
             base_time = datetime.now()
             time.sleep(sleep_time)
     except KeyboardInterrupt:
