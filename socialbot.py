@@ -11,7 +11,7 @@ from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 import argparse
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 def send_feed_to_telegram(feed, reader, logger):
     """

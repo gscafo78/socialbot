@@ -120,15 +120,14 @@ class RSSFeeders:
         if feed.entries:
             # Find the entry with the most recent pubDate/published
             def parse_date(entry):
-                date_str = entry.get('published', '') or entry.get('updated', '') or entry.get('pubDate', '')
-                for fmt in ('%a, %d %b %Y %H:%M:%S %z', '%Y-%m-%dT%H:%M:%SZ'):
-                    try:
-                        return datetime.strptime(date_str, fmt)
-                    except Exception:
-                        continue
+                for key in ['published_parsed', 'updated_parsed']:
+                    dt_struct = entry.get(key)
+                    if dt_struct:
+                        return datetime(*dt_struct[:6])
                 return None
             # Filter entries with a valid date
             dated_entries = [(entry, parse_date(entry)) for entry in feed.entries]
+            self.logger.debug(f"dated_entries for {url}: {[(e.get('link', ''), dt) for e, dt in dated_entries]}")
             dated_entries = [(e, dt) for e, dt in dated_entries if dt is not None]
             if not dated_entries:
                 return None
@@ -219,7 +218,7 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://www.securityweek.com/feed/"
+    rss_url = "https://www.panorama.it/feed"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
