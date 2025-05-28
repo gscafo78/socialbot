@@ -4,11 +4,11 @@ from bs4 import BeautifulSoup
 import re
 import sys
 import os
+import requests
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 import concurrent.futures
 from gpt.gptcomment import ArticleCommentator
-import requests
 
 class RSSFeeders:
     """
@@ -20,15 +20,12 @@ class RSSFeeders:
         retention (int): Number of days to retain old feeds (default 10).
         logger (logging.Logger): Logger instance (optional).
         log_level (str): Logging level if logger is not provided (default "INFO").
-
-    Methods:
-        get_latest_rss(url): Returns a dictionary with link, datetime, description, and title of the latest item.
-        get_new_feeders(...): Returns new feeds not present in previousrss and updates previousrss.
-        remove_old_feeds(previousrss): Removes feeds older than retention days.
-        html_to_markdown(html_text): Converts HTML to Markdown.
+        user_agent (str): User-Agent string for HTTP requests (optional).
     """
 
-    def __init__(self, feeds, previviousrss, retention=10, logger=None, log_level="INFO"):
+    DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.3240.92"
+
+    def __init__(self, feeds, previviousrss, retention=10, logger=None, log_level="INFO", user_agent=None):
         """
         Initialize the RSSFeeders object.
 
@@ -38,10 +35,12 @@ class RSSFeeders:
             retention (int): Number of days to retain old feeds.
             logger (logging.Logger): Logger instance (optional).
             log_level (str): Logging level if logger is not provided.
+            user_agent (str): User-Agent string for HTTP requests (optional).
         """
         self.feeds = feeds
         self.previousrss = previviousrss
         self.retention = retention
+        self.user_agent = user_agent or self.DEFAULT_USER_AGENT
         # Use the provided logger or create a new one with the requested level
         if logger is not None:
             self.logger = logger
@@ -124,7 +123,7 @@ class RSSFeeders:
             }
             or None if no items are found or if the item is too old.
         """
-        headers = {'User-Agent': 'Mozilla/5.0 (compatible; MyFeedReader/1.0)'}
+        headers = {'User-Agent': self.user_agent}
         try:
             resp = requests.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
@@ -246,7 +245,7 @@ def main():
     Fetches and prints the latest RSS item from the given feed URL.
 
     Usage:
-        feeds = [{"rss": "https://www.cshub.com/rss/articles"}]
+        feeds = [{"rss": "https://www.fanpage.it/feed/"}]
         previousrss = []
         rss = RSSFeeders(feeds, previousrss)
         newfeeds, updated_previousrss = rss.get_new_feeders()
