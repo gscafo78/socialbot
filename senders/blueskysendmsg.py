@@ -162,13 +162,13 @@ if __name__ == "__main__":
     # Replace these values with your Bluesky credentials and desired post
     text = "Here is the link to the Bluesky site:"
     link = "https://www.example.com"        # Replace with the URL you want to preview
-    user = "johndo.bdky.social"             # Your handle
-    password = "Your app Password"          # Your app password
-    service = "https://bdky.social"         # Your service URL (default: https://bsky.social)
+    user = "yourhandle.bsky.social"         # Your handle
+    password = "Your Password"              # Your app password
+    service = "https://bsky.social"         # Your service URL (default: https://bsky.social)
 
     poster = BlueskyPoster(user, password, service)
     try:
-        response = poster.post_with_preview(text, link)
+        response = poster.post_with_preview(f"{text}\n{link}", link)
         print("Server response:")
         print(response)
     except Exception as e:

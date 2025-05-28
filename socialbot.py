@@ -11,10 +11,16 @@ from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 import argparse
 
+__version__ = "0.0.1"
 
 def send_feed_to_telegram(feed, reader, logger):
     """
     Send a single feed to all configured Telegram bots.
+
+    Args:
+        feed (dict): The feed data to send.
+        reader (JSONReader): The JSONReader instance for config.
+        logger (Logger): Logger instance.
     """
     bots = feed.get("telegram", {}).get("bots", [])
     for bot in bots:
@@ -28,6 +34,11 @@ def send_feed_to_telegram(feed, reader, logger):
 def send_feed_to_bluesky(feed, reader, logger):
     """
     Send a single feed to all configured Bluesky bots.
+
+    Args:
+        feed (dict): The feed data to send.
+        reader (JSONReader): The JSONReader instance for config.
+        logger (Logger): Logger instance.
     """
     bots = feed.get("bluesky", {}).get("bots", [])
     for bot in bots:
@@ -37,14 +48,18 @@ def send_feed_to_bluesky(feed, reader, logger):
         logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
         blueskybot = BlueskyPoster(handle, password, service)
         try:
-            response = blueskybot.post_with_preview(feed.get('ai-comment', ''), feed.get('link', ''))
+            response = blueskybot.post_with_preview(f"{feed.get('ai-comment', '')}\n{feed.get('link', '')}", feed.get('link', ''))
             logger.debug(f"Server response: {response}")
         except Exception as e:
             logger.error(f"Error while posting: {e}")
-            # oppure, per loggare anche lo stacktrace:
+            # Or, to log the stacktrace:
             # logger.exception("Error while posting:")
 
 def main():
+    """
+    Main entry point for SocialBot.
+    Parses arguments, loads configuration, and starts the main loop.
+    """
     # --- Parse command line arguments ---
     parser = argparse.ArgumentParser(description="SocialBot main runner")
     parser.add_argument(
@@ -70,13 +85,10 @@ def main():
     log_level_str = 'DEBUG' if args.verbose else reader.get_value('settings', {}).get('log_level', 'INFO')
     logger = Logger.get_logger(__name__, level=log_level_str)
     
-
     # Re-initialize reader with the correct logger if needed
     reader = JSONReader(file_path, logger=logger)
     feeds_path = reader.get_value('settings', {}).get('feeds_file', "/opt/github/03_Script/Python/socialbot/feeds.json")
-    
     readfeeds = JSONReader(feeds_path, logger=logger)
-
 
     # --- Log file and update interval ---
     logfile = reader.get_value('settings', {}).get('log_file', '/var/log/socialbot.log')
@@ -90,10 +102,11 @@ def main():
     mute = MuteTimeChecker(mutefrom, muteto, logger=logger)
 
     # --- Select GPT model ---
-    if gptmodel == "auto" :
+    if gptmodel == "auto":
         logger.info("OpenAI model not set. Using auto model.")
         gptmodel = GPTModelSelector(reader.get_value('openai')['openai_key']).get_cheapest_gpt_model()
     
+    logger.info(f"Start SocialBot - Ver. {__version__}")
     logger.debug(f"File setting path: {file_path}")
     logger.info(f"Feeds file path: {feeds_path}")
     logger.info(f"Log file path: {logfile}")
@@ -105,6 +118,7 @@ def main():
 
     try:
         while True:
+            # Calculate next run time using cron expression
             iter_cron = croniter(cron, base_time)
             next_run = iter_cron.get_next(datetime)
             sleep_time = (next_run - datetime.now()).total_seconds()
@@ -129,10 +143,12 @@ def main():
                     feed.setdefault("ai-comment", "")
 
                 # --- Initialize RSSFeeders with logger ---
-                rss = RSSFeeders(feeds, 
-                                 previousrss, 
-                                 retention=reader.get_value('settings')['days_of_retention'], 
-                                 logger=logger)
+                rss = RSSFeeders(
+                    feeds, 
+                    previousrss, 
+                    retention=reader.get_value('settings')['days_of_retention'], 
+                    logger=logger
+                )
 
                 # --- Get new feeds and update file ---
                 newfeeds, feedstofile = rss.get_new_feeders(
@@ -154,18 +170,32 @@ def main():
                 else:
                     logger.info("No new feeds found.")
 
-            
-            
             # --- Wait before next execution ---
             if sleep_time < 0:
                 logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
-                sleep_time = 1
+                sleep_time = 0
             logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
             base_time = datetime.now()
             time.sleep(sleep_time)
     except KeyboardInterrupt:
         logger.info("Manual interruption received. Exiting program.")
 
+"""
+How to use this script:
+
+- Run the script directly: `python socialbot.py`
+- Use the `--config` option to specify a custom settings file.
+- Use the `--verbose` flag for debug logging.
+
+The main loop will:
+1. Load configuration and feeds.
+2. Check if it's mute time (no posting).
+3. Fetch new RSS items and generate AI comments.
+4. Send new items to Telegram and Bluesky.
+5. Wait for the next scheduled run (cron-based).
+
+You can extend the script by adding new senders or modifying the feed processing logic.
+"""
 
 if __name__ == "__main__":
     main()
