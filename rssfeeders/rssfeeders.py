@@ -68,6 +68,8 @@ class RSSFeeders:
                 # If datetime is missing or invalid, keep the feed (optional: you can skip it)
                 filtered_previousrss.append(feed)
         return filtered_previousrss
+    
+    
     def html_to_markdown(self, html_text):
         """
         Converts HTML content to Markdown format and removes unwanted "article source" lines.
@@ -95,6 +97,34 @@ class RSSFeeders:
         if not markdown_lines:
             return soup.get_text(separator="\n", strip=True)
         return "\n\n".join(markdown_lines)
+    
+    def removeextra(self, testo):
+        """
+        Modifica il testo rimuovendo tag HTML, mantenendo solo il contenuto principale
+        e gestendo correttamente i caratteri speciali.
+        
+        Args:
+            testo (str): Il testo HTML da pulire
+        
+        Returns:
+            str: Testo pulito senza tag HTML e senza il footer
+        """
+        # Rimuove il footer che inizia con "The post"
+        testo = re.sub(r'<p>The post.*?</p>', '', testo, flags=re.DOTALL)
+        
+        # Rimuove tutti i tag HTML
+        testo = re.sub(r'<.*?>', '', testo)
+        
+        # Gestisce i caratteri speciali codificati in HTML
+        testo = testo.replace('&#8230;', '…')
+        
+        # Rimuove spazi e newline extra
+        testo = re.sub(r'\n+', ' ', testo)
+        testo = re.sub(r'\s+', ' ', testo)
+        
+        return testo.strip()
+    
+    
     def get_latest_rss(self, url):
         """
         Parses the RSS feed and returns the latest item's details based on pubDate/published.
@@ -135,9 +165,11 @@ class RSSFeeders:
             # Get the most recent entry
             latest_entry, date_time_dt = max(dated_entries, key=lambda x: x[1])
             link = latest_entry.link
+            
             description = latest_entry.description if 'description' in latest_entry else ''
             if "<" in description and ">" in description:
-                description = self.html_to_markdown(description)
+                description = self.removeextra(description)
+            
             title = latest_entry.title if 'title' in latest_entry else ''
             # Discard if the item is older than self.retention days
             if date_time_dt:
