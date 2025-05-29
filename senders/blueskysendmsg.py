@@ -8,14 +8,6 @@ import json
 import logging
 
 class BlueskyPoster:
-    """
-    A class to post messages with link previews to the Bluesky network.
-    Args:
-        handle (str): The Bluesky user handle (e.g., "user.bsky.social").
-        app_password (str): The app password for authentication.
-        service (str): The Bluesky service URL (default: "https://bsky.social").
-        user_agent (str): The User-Agent string for HTTP requests (optional).
-    """
     DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
     MAX_POST_LENGTH = 299  # Bluesky's character limit
 
@@ -30,10 +22,6 @@ class BlueskyPoster:
         self.logger = logger or logging.getLogger(__name__)
 
     def create_session(self):
-        """
-        Authenticates with Bluesky and stores the access token and DID.
-        Raises an exception if authentication fails.
-        """
         resp = requests.post(
             f"{self.service}/xrpc/com.atproto.server.createSession",
             json={"identifier": self.handle, "password": self.app_password},
@@ -45,9 +33,6 @@ class BlueskyPoster:
         self.logger.info(f"Successfully authenticated as {self.handle}")
 
     def create_simple_embed(self, url, title=None, description=None):
-        """
-        Creates a simple embed with just the URL and optional title/description
-        """
         card = {
             "uri": url,
             "title": title or "Link Preview",
@@ -58,13 +43,10 @@ class BlueskyPoster:
             "external": card,
         }
 
-    def fetch_embed_url_card(self, url):
-        """
-        Fetches metadata (title, description, image) from a URL to create a link preview card.
-        Falls back to a simple embed if the fetch fails.
-        """
+    def fetch_embed_url_card(self, url, more_info=False):
         self.logger.debug(f"Attempting to fetch preview for: {url}")
 
+        # Card base: "uri" sempre presente!
         card = {
             "uri": url,
             "title": "",
@@ -84,14 +66,12 @@ class BlueskyPoster:
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
         }
-
         self.session.headers.update(headers)
 
         try:
             time.sleep(1)
             resp = self.session.get(url, timeout=15)
             resp.raise_for_status()
-
             soup = BeautifulSoup(resp.text, "html.parser")
 
             # Extract title
@@ -100,27 +80,25 @@ class BlueskyPoster:
                 card["title"] = title_tag.get("content", "")
             if not card["title"] and soup.title:
                 card["title"] = soup.title.string or ""
-
-            # Extract description
-            description_tag = soup.find("meta", property="og:description")
-            if description_tag:
-                card["description"] = description_tag.get("content", "")
-            if not card["description"]:
-                desc_tag = soup.find("meta", attrs={"name": "description"})
-                if desc_tag:
-                    card["description"] = desc_tag.get("content", "")
-
             # Truncate if too long
             if card["title"] and len(card["title"]) > 250:
                 card["title"] = card["title"][:247] + "..."
-
-            if card["description"] and len(card["description"]) > 300:
-                card["description"] = card["description"][:297] + "..."
-
             if not card["title"]:
                 card["title"] = "Link Preview"
 
-            # Extract image and upload as blob if present
+            if more_info:
+                # Extract description
+                description_tag = soup.find("meta", property="og:description")
+                if description_tag:
+                    card["description"] = description_tag.get("content", "")
+                if not card["description"]:
+                    desc_tag = soup.find("meta", attrs={"name": "description"})
+                    if desc_tag:
+                        card["description"] = desc_tag.get("content", "")
+                if card["description"] and len(card["description"]) > 300:
+                    card["description"] = card["description"][:297] + "..."
+
+            # Estrarre immagine e upload come già fai
             image_tag = soup.find("meta", property="og:image")
             if image_tag:
                 img_url = image_tag.get("content", "")
@@ -131,7 +109,7 @@ class BlueskyPoster:
                 IMAGE_MIMETYPE = img_resp.headers.get("Content-Type", "image/jpeg")
                 if len(img_resp.content) <= 1000000:
                     self.logger.debug(f"Uploading image: {img_url}")
-                    blob_resp = requests.post(
+                    blob_resp = self.session.post(
                         f"{self.service}/xrpc/com.atproto.repo.uploadBlob",
                         headers={
                             "Content-Type": IMAGE_MIMETYPE,
@@ -140,10 +118,13 @@ class BlueskyPoster:
                         data=img_resp.content,
                     )
                     blob_resp.raise_for_status()
-                    card["thumb"] = blob_resp.json()["blob"]
-                    self.logger.info("Image uploaded successfully")
+                    if "blob" in blob_resp.json():
+                        card["thumb"] = blob_resp.json()["blob"]
+                        self.logger.info("Image uploaded successfully")
+                    else:
+                        self.logger.warning(f"Image upload response: {blob_resp.text}")
 
-            self.logger.info(f"Successfully created embed with title: {card['title']}")
+            self.logger.info(f"Successfully created embed with title: {card.get('title','')}")
 
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Error fetching URL: {e}")
@@ -155,21 +136,10 @@ class BlueskyPoster:
         }
 
     def create_facets(self, text, link):
-        """
-        Creates link facets for the post text, so the link is clickable in the post.
-        Args:
-            text (str): The post text.
-            link (str): The URL to facet.
-        Returns:
-            list: List of facet dictionaries.
-        """
         facets = []
-        # Trova l'URL completo nel testo
         for m in re.finditer(re.escape(link), text):
-            # Calcola gli indici di byte, non di carattere
             byte_start = len(text[:m.start()].encode('utf-8'))
             byte_end = byte_start + len(link.encode('utf-8'))
-            
             facets.append({
                 "index": {"byteStart": byte_start, "byteEnd": byte_end},
                 "features": [{
@@ -180,18 +150,12 @@ class BlueskyPoster:
         return facets
 
     def truncate_text(self, text, max_length=None):
-        """
-        Truncates text to stay within Bluesky's character limit
-        """
         max_length = max_length or self.MAX_POST_LENGTH
         if len(text) <= max_length:
             return text
         return text[:max_length-3] + "..."
 
     def post_without_preview(self, text, link):
-        """
-        Posts a simple message with clickable link but no preview
-        """
         if not self.access_jwt or not self.did:
             self.create_session()
 
@@ -237,67 +201,17 @@ class BlueskyPoster:
 
         return record_resp.json()
 
-    def post_with_preview(self, text, link):
-        """
-        Publishes a post with a link preview to Bluesky.
-        Args:
-            text (str): The post text.
-            link (str): The URL to preview.
-        Returns:
-            dict: The server response as a dictionary.
-        Raises:
-            Exception: If posting fails.
-        """
-        if not self.access_jwt or not self.did:
-            self.create_session()
-
-        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        truncated_text = self.truncate_text(text)
-        self.logger.debug(f"Text length: {len(truncated_text)} characters")
-        embed = self.fetch_embed_url_card(link)
-        facets = self.create_facets(truncated_text, link) if link in truncated_text else []
-
-        post = {
-            "$type": "app.bsky.feed.post",
-            "text": truncated_text,
-            "createdAt": now,
-            "embed": embed,
-        }
-
-        if facets:
-            post["facets"] = facets
-
-        self.logger.info("Posting with preview...")
-        self.logger.debug(json.dumps(post, indent=2, default=str)[:500] + "...")
-
-        record_resp = requests.post(
-            f"{self.service}/xrpc/com.atproto.repo.createRecord",
-            headers={"Authorization": "Bearer " + self.access_jwt},
-            json={
-                "repo": self.did,
-                "collection": "app.bsky.feed.post",
-                "record": post,
-            },
-        )
-
-        if not record_resp.ok:
-            self.logger.error(f"Error response: {record_resp.status_code} - {record_resp.text}")
-            record_resp.raise_for_status()
-
-        return record_resp.json()
-
-    def post_feed(self, description, link, ai_comment=None):
+    def post_feed(self, description, link, ai_comment=None, title=None, more_info=False):
         """
         Publishes a post to Bluesky with a link preview.
         - If ai_comment is empty or None: posts title, newline, description, newline, link (with preview)
         - If ai_comment is not empty: posts ai_comment, newline, link (with preview)
-
         Args:
             title (str): The title of the feed.
             description (str): The description of the feed.
             link (str): The URL to preview.
             ai_comment (str, optional): The AI-generated comment.
-
+            more_info (bool): If True, include title/description in preview; if False, only image.
         Returns:
             dict: The server response as a dictionary.
         """
@@ -307,11 +221,11 @@ class BlueskyPoster:
         if ai_comment:
             text = f"{ai_comment}\n{link}"
         else:
-            text = f"{description}\n{link}"
+            text = f"{title or ''}\n{description}\n{link}"
 
         truncated_text = self.truncate_text(text)
         self.logger.debug(f"Text length: {len(truncated_text)} characters")
-        embed = self.fetch_embed_url_card(link)
+        embed = self.fetch_embed_url_card(link, more_info=more_info)
         facets = self.create_facets(truncated_text, link) if link in truncated_text else []
 
         post = {
@@ -356,8 +270,7 @@ if __name__ == "__main__":
 
     poster = BlueskyPoster(user, password, service)
     try:
-        response = poster.post_feed(text, link)
-        # response = poster.post_with_preview(text, link)
+        response = poster.post_feed(description=text, link=link, title=title, more_info=False)
         print("Successfully posted with preview!")
         print("Server response:")
         print(json.dumps(response, indent=2))
