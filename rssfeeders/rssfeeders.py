@@ -33,7 +33,8 @@ class RSSFeeders:
             user_agent (str): User-Agent string for HTTP requests (optional).
         """
         self.feeds = feeds
-        self.previousrss = previviousrss
+        # Ensure previousrss is always a list
+        self.previousrss = previviousrss if isinstance(previviousrss, list) else []
         self.retention = retention
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
         # Use the provided logger or create a new one with the requested level
@@ -218,7 +219,7 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://www.securityweek.com/feed/"
+    rss_url = "https://cms.ilmanifesto.it/feed"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
