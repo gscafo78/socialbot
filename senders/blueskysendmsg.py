@@ -263,7 +263,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     title = None
     text = "È stato ribattezzato come Progetto di legge della devastazione, in primo luogo dell’Amazzonia, e mai definizione è stata più calzante. Perché il Pl 2.159/2021 è davvero una delle espressioni più […]"
-    link = "https://ilmanifesto.it/la-devastazione-dellamazzonia-e-legge"
+    link = "https://www.ilgiornale.it/news/nazionale/napoli-turista-uccisa-statuetta-lanciarla-13enne-2486551.html"
     user = "gscafo78.bluesky.myhomecloud.it"
     password = "Can8d1g0mm4!"
     service = "https://bluesky.myhomecloud.it"

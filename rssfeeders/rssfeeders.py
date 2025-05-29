@@ -5,6 +5,7 @@ import re
 import sys
 import os
 import requests
+import html
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 import concurrent.futures
@@ -165,12 +166,17 @@ class RSSFeeders:
             # Get the most recent entry
             latest_entry, date_time_dt = max(dated_entries, key=lambda x: x[1])
             link = latest_entry.link
-            
+
             description = latest_entry.description if 'description' in latest_entry else ''
             if "<" in description and ">" in description:
                 description = self.removeextra(description)
-            
+            # Decodifica entità HTML
+            description = html.unescape(description)
+
             title = latest_entry.title if 'title' in latest_entry else ''
+            # Decodifica entità HTML
+            title = html.unescape(title)
+
             # Discard if the item is older than self.retention days
             if date_time_dt:
                 now = datetime.now(date_time_dt.tzinfo) if date_time_dt.tzinfo else datetime.now()
