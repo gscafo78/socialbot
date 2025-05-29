@@ -48,7 +48,11 @@ def send_feed_to_bluesky(feed, reader, logger):
         logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
         blueskybot = BlueskyPoster(handle, password, service)
         try:
-            response = blueskybot.post_with_preview(f"{feed.get('ai-comment', '')}\n{feed.get('link', '')}", feed.get('link', ''))
+            if feed.get('comment') ==  '':
+                response = blueskybot.post_with_preview(f"{feed.get('description', '')}\n{feed.get('link', '')}", feed.get('link', ''))
+            else:
+                response = blueskybot.post_with_preview(f"{feed.get('ai-comment', '')}\n{feed.get('link', '')}", feed.get('link', ''))
+            
             logger.debug(f"Server response: {response}")
         except Exception as e:
             logger.error(f"Error while posting: {e}")
