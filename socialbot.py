@@ -27,9 +27,14 @@ def send_feed_to_telegram(feed, reader, logger):
         logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
         token, chat_id, _ = reader.get_social_credentials("telegram", bot)
         logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
-        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+        
         telebot = TelegramBotPublisher(token, chat_id)
-        telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+        # Use short_link if present and not empty/None, otherwise use link
+        link_to_use = feed.get('short_link')
+        if not link_to_use:
+            link_to_use = feed.get('link', '')
+        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
+        telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
 
 def send_feed_to_bluesky(feed, reader, logger):
     """
@@ -44,17 +49,23 @@ def send_feed_to_bluesky(feed, reader, logger):
     for bot in bots:
         logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
         handle, password, service = reader.get_social_credentials("bluesky", bot)
+        # Use short_link if present and not empty/None, otherwise use link
+        link_to_use = feed.get('short_link')
+        if not link_to_use:
+            link_to_use = feed.get('link', '')
         logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
-        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{feed.get('link', '')}")
+        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
         blueskybot = BlueskyPoster(handle, password, service)
         try:
             ai_comment = feed.get('ai-comment', '')
             if ai_comment == '':
                 ai_comment = None
+
             response = blueskybot.post_feed(
                 description=feed.get('description', ''),
-                link=feed.get('link', ''),
-                ai_comment=ai_comment
+                link=link_to_use,
+                ai_comment=ai_comment,
+                title=feed.get('title', '')
             )
             logger.debug(f"Server response: {response}")
         except Exception as e:
