@@ -294,12 +294,12 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://8bitsecurity.com/feed/"
+    rss_url = "https://www.ilfattoquotidiano.it/feed/"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
     newfeeds, updated_previousrss = rss.get_new_feeders()
-    print(newfeeds, updated_previousrss)
+    print(f"New Feeds{newfeeds}\nPrevious Feeds {updated_previousrss}")
 
 if __name__ == "__main__":
     main()
