@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 import concurrent.futures
 from gpt.gptcomment import ArticleCommentator
+
 class RSSFeeders:
     """
     Class to fetch and process the latest items from a list of RSS feeds.
@@ -22,6 +23,7 @@ class RSSFeeders:
         user_agent (str): User-Agent string for HTTP requests (optional).
     """
     DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.3240.92"
+
     def __init__(self, feeds, previviousrss, retention=10, logger=None, log_level="INFO", user_agent=None):
         """
         Initialize the RSSFeeders object.
@@ -43,6 +45,21 @@ class RSSFeeders:
             self.logger = logger
         else:
             self.logger = Logger.get_logger(__name__, level=log_level)
+    
+    def estrai_path_immagine(self, html_string):
+        """
+        Extracts the first image path from an HTML string.
+        Args:
+            html_string (str): The HTML content to search for an image.
+        Returns:
+            str or None: The image URL if found, otherwise None.
+        """
+        pattern = r'<img[^>]+src="([^"]+)"'
+        match = re.search(pattern, html_string)
+        if match:
+            return match.group(1)
+        return None
+
     def remove_old_feeds(self, previousrss):
         """
         Removes feeds older than self.retention days from previousrss.
@@ -69,7 +86,6 @@ class RSSFeeders:
                 # If datetime is missing or invalid, keep the feed (optional: you can skip it)
                 filtered_previousrss.append(feed)
         return filtered_previousrss
-    
     
     def html_to_markdown(self, html_text):
         """
@@ -101,30 +117,23 @@ class RSSFeeders:
     
     def removeextra(self, testo):
         """
-        Modifica il testo rimuovendo tag HTML, mantenendo solo il contenuto principale
-        e gestendo correttamente i caratteri speciali.
-        
+        Cleans the text by removing HTML tags, keeping only the main content,
+        and handling special characters.
         Args:
-            testo (str): Il testo HTML da pulire
-        
+            testo (str): The HTML text to clean.
         Returns:
-            str: Testo pulito senza tag HTML e senza il footer
+            str: Cleaned text without HTML tags and footer.
         """
-        # Rimuove il footer che inizia con "The post"
+        # Remove the footer starting with "The post"
         testo = re.sub(r'<p>The post.*?</p>', '', testo, flags=re.DOTALL)
-        
-        # Rimuove tutti i tag HTML
+        # Remove all HTML tags
         testo = re.sub(r'<.*?>', '', testo)
-        
-        # Gestisce i caratteri speciali codificati in HTML
+        # Handle special HTML encoded characters
         testo = testo.replace('&#8230;', '…')
-        
-        # Rimuove spazi e newline extra
+        # Remove extra spaces and newlines
         testo = re.sub(r'\n+', ' ', testo)
         testo = re.sub(r'\s+', ' ', testo)
-        
         return testo.strip()
-    
     
     def get_latest_rss(self, url):
         """
@@ -137,7 +146,10 @@ class RSSFeeders:
                 "link": str,
                 "datetime": datetime or None,
                 "description": str (Markdown),
-                "title": str
+                "title": str,
+                "category": list or None,
+                "short_link": str or None,
+                "img_link": str or None
             }
             or None if no items are found or if the item is too old.
         """
@@ -167,14 +179,15 @@ class RSSFeeders:
             latest_entry, date_time_dt = max(dated_entries, key=lambda x: x[1])
             link = latest_entry.link
 
+            # Extract and clean description
             description = latest_entry.description if 'description' in latest_entry else ''
             if "<" in description and ">" in description:
                 description = self.removeextra(description)
-            # Decodifica entità HTML
+            # Decode HTML entities
             description = html.unescape(description)
 
+            # Extract and clean title
             title = latest_entry.title if 'title' in latest_entry else ''
-            # Decodifica entità HTML
             title = html.unescape(title)
 
             # Discard if the item is older than self.retention days
@@ -183,20 +196,40 @@ class RSSFeeders:
                 if (now - date_time_dt) > timedelta(days=self.retention):
                     self.logger.debug(f"Feed item from {url} is older than retention ({self.retention} days), skipping.")
                     return None
+
+            # Extract category/tags as a list of terms
+            category = None
+            if 'tags' in latest_entry:
+                if isinstance(latest_entry.tags, list) and latest_entry.tags:
+                    category = [t.get('term') for t in latest_entry.tags if 'term' in t]
+
+            # Extract short link and image link
+            short_link = latest_entry.id if 'id' in latest_entry else None
+            media_content = latest_entry.get('media_content', [])
+            img_link = None
+            if media_content:
+                img_link = media_content[0].get('url')
+            elif 'content' in latest_entry and latest_entry['content']:
+                img_link = self.estrai_path_immagine(latest_entry['content'][0]['value'])
+
             return {
                 "link": link,
                 "datetime": date_time_dt,
                 "description": description,
-                "title": title
+                "title": title,
+                "category": category,
+                "short_link": short_link,
+                "img_link": img_link,
             }
         return None
+    
     def get_new_feeders(self, openai_key=None, gptmodel=None, max_chars=160, language="en"):
         """
         Checks all feeds for new items not present in previousrss, using multithreading.
         Removes feeds older than self.retention days from previousrss.
         Args:
-            openai_key (str): OpenAI API key for ArticleCommentator (optional).
-            gptmodel (str): GPT model to use (optional).
+            openai_key (str): OpenAI API key for ArticleCommentator (optional, use "XXXXXXXXXX" for placeholder).
+            gptmodel (str): GPT model to use (optional, use "XXXXXXXXXX" for placeholder).
             max_chars (int): Max chars for AI comment (default 160).
             language (str): Language for AI comment (default "en").
         Returns:
@@ -220,6 +253,9 @@ class RSSFeeders:
                 feed['datetime'] = result['datetime']
                 feed['description'] = result['description']
                 feed['title'] = result['title']
+                feed['category'] = result['category']
+                feed['short_link'] = result['short_link']
+                feed['img_link'] = result['img_link']
                 # Generate AI comment if requested
                 if feed.get("ai") and openai_key and gptmodel:
                     gptcomment = ArticleCommentator(
@@ -245,6 +281,7 @@ class RSSFeeders:
                 previousrss.append(feed)
         previousrss = self.remove_old_feeds(previousrss)
         return newfeeds, previousrss
+
 # Example usage
 def main():
     """
@@ -257,11 +294,12 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://cms.ilmanifesto.it/feed"
+    rss_url = "https://8bitsecurity.com/feed/"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
     newfeeds, updated_previousrss = rss.get_new_feeders()
     print(newfeeds, updated_previousrss)
+
 if __name__ == "__main__":
     main()
