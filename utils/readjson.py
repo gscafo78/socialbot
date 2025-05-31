@@ -98,7 +98,7 @@ class JSONReader:
         except Exception as e:
             self.logger.error(f"Error writing to '{self.file_path}': {e}")
 
-    def get_social_credentials(self, social_type, name):
+    def get_social_values(self, social_type, name):
         """
         Returns the credentials for a given social bot name.
 
@@ -120,16 +120,25 @@ class JSONReader:
                         if bot.get("name") == name:
                             token = bot.get("token")
                             chat_id = bot.get("chat_id")
-                            return token, chat_id, None
+                            if not token or not chat_id:
+                                self.logger.error(f"Error: Missing token or chat_id for {social_type} bot named '{name}'.")
+                                return None, None, None, None
+                            # Check if 'mute' is present, default to False if not
+                            mute = bot.get("mute", False)
+                            return token, chat_id, None, mute
                 elif social_type == "bluesky":
                     for bot in entry[social_type]:
                         if bot.get("name") == name:
                             handle = bot.get("handle")
                             password = bot.get("password")
                             service = bot.get("service", "https://bsky.social")
-                            return handle, password, service
+                            mute = bot.get("mute", False)
+                            if not handle or not password:
+                                self.logger.error(f"Error: Missing handle or password for {social_type} bot named '{name}'.")
+                                return None, None, None, None
+                            return handle, password, service, mute
         self.logger.error(f"Error: No credentials found for {social_type} bot named '{name}'.")
-        return None, None, None
+        return None, None, None, None
 
 # Example usage
 def main():

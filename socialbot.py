@@ -11,9 +11,12 @@ from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 import argparse
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
-def send_feed_to_telegram(feed, reader, logger):
+def send_feed_to_telegram(feed, 
+                          reader, 
+                          logger,
+                          ismute=False):
     """
     Send a single feed to all configured Telegram bots.
 
@@ -24,19 +27,25 @@ def send_feed_to_telegram(feed, reader, logger):
     """
     bots = feed.get("telegram", {}).get("bots", [])
     for bot in bots:
-        logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
-        token, chat_id, _ = reader.get_social_credentials("telegram", bot)
-        logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
-        
-        telebot = TelegramBotPublisher(token, chat_id)
-        # Use short_link if present and not empty/None, otherwise use link
-        link_to_use = feed.get('short_link')
-        if not link_to_use:
-            link_to_use = feed.get('link', '')
-        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-        telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
+        mute = False
+        token, chat_id, _ , mute = reader.get_social_values("telegram", bot)
+        if not mute or not ismute:
+            logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
+            logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
+            telebot = TelegramBotPublisher(token, chat_id)
+            # Use short_link if present and not empty/None, otherwise use link
+            link_to_use = feed.get('short_link')
+            if not link_to_use:
+                link_to_use = feed.get('link', '')
+            logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
+            telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
+        else:
+            logger.debug(f"Skipping Telegram message for {feed.get('title', '')} due to mute setting.")
 
-def send_feed_to_bluesky(feed, reader, logger):
+def send_feed_to_bluesky(feed, 
+                         reader, 
+                         logger, 
+                         ismute=False):
     """
     Send a single feed to all configured Bluesky bots.
 
@@ -47,31 +56,35 @@ def send_feed_to_bluesky(feed, reader, logger):
     """
     bots = feed.get("bluesky", {}).get("bots", [])
     for bot in bots:
-        logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
-        handle, password, service = reader.get_social_credentials("bluesky", bot)
-        # Use short_link if present and not empty/None, otherwise use link
-        link_to_use = feed.get('short_link')
-        if not link_to_use:
-            link_to_use = feed.get('link', '')
-        logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
-        logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-        blueskybot = BlueskyPoster(handle, password, service)
-        try:
-            ai_comment = feed.get('ai-comment', '')
-            if ai_comment == '':
-                ai_comment = None
+        mute = False
+        handle, password, service, mute = reader.get_social_values("bluesky", bot)
+        if not mute or not ismute:
+            logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
+            # Use short_link if present and not empty/None, otherwise use link
+            link_to_use = feed.get('short_link')
+            if not link_to_use:
+                link_to_use = feed.get('link', '')
+            logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
+            logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
+            blueskybot = BlueskyPoster(handle, password, service)
+            try:
+                ai_comment = feed.get('ai-comment', '')
+                if ai_comment == '':
+                    ai_comment = None
 
-            response = blueskybot.post_feed(
-                description=feed.get('description', ''),
-                link=link_to_use,
-                ai_comment=ai_comment,
-                title=feed.get('title', '')
-            )
-            logger.debug(f"Server response: {response}")
-        except Exception as e:
-            logger.error(f"Error while posting: {e}")
-            # Or, to log the stacktrace:
-            # logger.exception("Error while posting:")
+                response = blueskybot.post_feed(
+                    description=feed.get('description', ''),
+                    link=link_to_use,
+                    ai_comment=ai_comment,
+                    title=feed.get('title', '')
+                )
+                logger.debug(f"Server response: {response}")
+            except Exception as e:
+                logger.error(f"Error while posting: {e}")
+                # Or, to log the stacktrace:
+                # logger.exception("Error while posting:")
+        else:
+            logger.debug(f"Skipping Bluesky message for {feed.get('title', '')} due to mute setting.")
 
 def main():
     """
@@ -141,58 +154,58 @@ def main():
             iter_cron = croniter(cron, base_time)
             next_run = iter_cron.get_next(datetime)
             sleep_time = (next_run - datetime.now()).total_seconds()
-            if not mute.is_mute_time():
-                mute_logged = False  # Reset when not in mute
-                # --- Load previous RSS data ---
-                filerss = JSONReader(logfile, create=True, logger=logger)
-                previousrss = filerss.get_data()
-                logger.debug("Full JSON data loaded from log file.")
+        # if not mute.is_mute_time():
+            # mute_logged = False  # Reset when not in mute
+            # --- Load previous RSS data ---
+            filerss = JSONReader(logfile, create=True, logger=logger)
+            previousrss = filerss.get_data()
+            logger.debug("Full JSON data loaded from log file.")
 
-                # --- Load feeds from config ---
-                feeds = readfeeds.get_data()
-                logger.debug(f"Value for key 'feeds': {feeds}")
-                newfeeds = []
-                feedstofile = []
+            # --- Load feeds from config ---
+            feeds = readfeeds.get_data()
+            logger.debug(f"Value for key 'feeds': {feeds}")
+            newfeeds = []
+            feedstofile = []
 
-                # --- Ensure all required keys exist in each feed ---
-                for feed in feeds:
-                    feed.setdefault("link", "")
-                    feed.setdefault("datetime", "")
-                    feed.setdefault("description", "")
-                    feed.setdefault("title", "")
-                    feed.setdefault("ai-comment", "")
+            # --- Ensure all required keys exist in each feed ---
+            for feed in feeds:
+                feed.setdefault("link", "")
+                feed.setdefault("datetime", "")
+                feed.setdefault("description", "")
+                feed.setdefault("title", "")
+                feed.setdefault("ai-comment", "")
 
-                # --- Initialize RSSFeeders with logger ---
-                rss = RSSFeeders(
-                    feeds, 
-                    previousrss, 
-                    retention=reader.get_value('settings')['days_of_retention'], 
-                    logger=logger
-                )
+            # --- Initialize RSSFeeders with logger ---
+            rss = RSSFeeders(
+                feeds, 
+                previousrss, 
+                retention=reader.get_value('settings')['days_of_retention'], 
+                logger=logger
+            )
 
-                # --- Get new feeds and update file ---
-                newfeeds, feedstofile = rss.get_new_feeders(
-                    reader.get_value('openai')['openai_key'],
-                    gptmodel,
-                    openai_comment_max_chars,
-                    openai_comment_language
-                )
-                
-                if newfeeds:
-                    logger.debug("New feeds found:")
-                    logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
-                    for feed in newfeeds:
-                        send_feed_to_telegram(feed, reader, logger)
-                        send_feed_to_bluesky(feed, reader, logger)
+            # --- Get new feeds and update file ---
+            newfeeds, feedstofile = rss.get_new_feeders(
+                reader.get_value('openai')['openai_key'],
+                gptmodel,
+                openai_comment_max_chars,
+                openai_comment_language
+            )
+            
+            if newfeeds:
+                logger.debug("New feeds found:")
+                logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+                for feed in newfeeds:
+                    send_feed_to_telegram(feed, reader, logger, mute.is_mute_time())
+                    send_feed_to_bluesky(feed, reader, logger, mute.is_mute_time())
 
-                    filerss.set_data(feedstofile)
-                    logger.debug(f"New feeds saved to {logfile}.")
-                else:
-                    logger.info("No new feeds found.")
+                filerss.set_data(feedstofile)
+                logger.debug(f"New feeds saved to {logfile}.")
             else:
-                if not mute_logged:
-                    logger.info("Mute time, skipping feed update.")
-                    mute_logged = True
+                logger.info("No new feeds found.")
+        # else:
+        #     if not mute_logged:
+        #         logger.info("Mute time, skipping feed update.")
+        #         mute_logged = True
 
             # --- Wait before next execution ---
             if sleep_time < 0:

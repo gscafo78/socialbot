@@ -294,7 +294,7 @@ def main():
         newfeeds, updated_previousrss = rss.get_new_feeders()
         print(newfeeds)
     """
-    rss_url = "https://www.ilfattoquotidiano.it/feed/"
+    rss_url = "https://8bitsecurity.com/feed/"
     feeds = [{"rss": rss_url}]
     previousrss = []
     rss = RSSFeeders(feeds, previousrss)
