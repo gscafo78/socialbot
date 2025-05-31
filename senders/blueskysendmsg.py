@@ -264,9 +264,9 @@ if __name__ == "__main__":
     title = None
     text = "È stato ribattezzato come Progetto di legge della devastazione, in primo luogo dell’Amazzonia, e mai definizione è stata più calzante. Perché il Pl 2.159/2021 è davvero una delle espressioni più […]"
     link = "https://www.ilgiornale.it/news/nazionale/napoli-turista-uccisa-statuetta-lanciarla-13enne-2486551.html"
-    user = "gscafo78.bluesky.myhomecloud.it"
-    password = "Can8d1g0mm4!"
-    service = "https://bluesky.myhomecloud.it"
+    user = "XXXXXXX.bsky.social"  # Replace with your Bluesky handle
+    password = "XXXXXXXXXXX" # Replace with your Bluesky password
+    service = "https://bsk.social"  # Replace with your Bluesky service URL if different
 
     poster = BlueskyPoster(user, password, service)
     try:
