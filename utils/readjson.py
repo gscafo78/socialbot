@@ -137,6 +137,17 @@ class JSONReader:
                                 self.logger.error(f"Error: Missing handle or password for {social_type} bot named '{name}'.")
                                 return None, None, None, None
                             return handle, password, service, mute
+                elif social_type == "linkedin":
+                    for bot in entry[social_type]:
+                        if bot.get("name") == name:
+                            urn = bot.get("urn")
+                            access_token = bot.get("access_token")
+                            mute = bot.get("mute", False)
+                            if not urn or not access_token:
+                                self.logger.error(f"Error: Missing handle or password for {social_type} bot named '{name}'.")
+                                return None, None, None, None
+                            return urn, access_token, None, mute
+        
         self.logger.error(f"Error: No credentials found for {social_type} bot named '{name}'.")
         return None, None, None, None
 
