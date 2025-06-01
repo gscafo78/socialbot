@@ -74,7 +74,7 @@ class LinkedInPublisher:
         """
         text += f"\n\n🔗 Link all'articolo {link}"  # Add link at the end of the text
         if category:
-            hashtags = ' '.join(f"#{c.lstrip('#')}" for c in category)
+            hashtags = ' '.join(f"#{str(c).lstrip('#').replace(' ', '')}" for c in category)
             text += f"\n\n{hashtags}"
             
         payload = {
