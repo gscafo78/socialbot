@@ -10,7 +10,7 @@ from gpt.getmodel import GPTModelSelector
 from senders.senders import SocialSender
 import argparse
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
 
 
 def main():
@@ -134,9 +134,9 @@ def main():
             if sleep_time < 0:
                 logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
                 sleep_time = 0
+
             # Log waiting time only if not in mute interval
-            if not mute.is_mute_time():
-                logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
+            logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
 
             # --- Wait until next scheduled run ---
             time.sleep(sleep_time)
