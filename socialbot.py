@@ -7,89 +7,11 @@ from utils.logger import Logger
 from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
-from senders.telegramsendmsg import TelegramBotPublisher
-from senders.blueskysendmsg import BlueskyPoster
-from senders.linkedinpublisher import LinkedInPublisher
+from senders.senders import SocialSender
 import argparse
 
 __version__ = "0.0.9"
 
-def send_feed_to_telegram(feed, reader, logger, ismute=False):
-    """
-    Send a single feed to all configured Telegram bots.
-    """
-    bots = feed.get("telegram", {}).get("bots", [])
-    for bot in bots:
-        mute = False
-        token, chat_id, _, mute = reader.get_social_values("telegram", bot)
-        if not mute or not ismute:
-            logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
-            logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
-            telebot = TelegramBotPublisher(token, chat_id)
-            # Use short_link if present, otherwise fallback to link
-            link_to_use = feed.get('short_link') or feed.get('link', '')
-            logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-            telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-        else:
-            logger.debug(f"Skipping Telegram message for {feed.get('title', '')} due to mute setting.")
-
-def send_feed_to_bluesky(feed, reader, logger, ismute=False):
-    """
-    Send a single feed to all configured Bluesky bots.
-    """
-    bots = feed.get("bluesky", {}).get("bots", [])
-    for bot in bots:
-        mute = False
-        handle, password, service, mute = reader.get_social_values("bluesky", bot)
-        if not mute or not ismute:
-            logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
-            # Use short_link if present, otherwise fallback to link
-            link_to_use = feed.get('short_link') or feed.get('link', '')
-            logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
-            logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-            blueskybot = BlueskyPoster(handle, password, service)
-            try:
-                ai_comment = feed.get('ai-comment', '') or None
-                response = blueskybot.post_feed(
-                    description=feed.get('description', ''),
-                    link=link_to_use,
-                    ai_comment=ai_comment,
-                    title=feed.get('title', '')
-                )
-                logger.debug(f"Server response: {response}")
-            except Exception as e:
-                logger.error(f"Error while posting: {e}")
-        else:
-            logger.debug(f"Skipping Bluesky message for {feed.get('title', '')} due to mute setting.")
-
-def send_feed_to_linkedin(feed, reader, logger, ismute=False):
-    """
-    Send a single feed to all configured LinkedIn accounts.
-    """
-    bots = feed.get("linkedin", {}).get("bots", [])
-    for bot in bots:
-        mute = False
-        urn, access_token, _, mute = reader.get_social_values("linkedin", bot)
-        if not mute or not ismute:
-            logger.debug(f"Sending new feed to Linkedin... {feed.get('title', '')}")                
-            # Use short_link if present, otherwise fallback to link
-            link_to_use = feed.get('short_link') or feed.get('link', '')
-            logger.debug(f"LinkedinBotPublisher initialized with urn {urn}, access_token {access_token}.")
-            logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
-            linkedinbot = LinkedInPublisher(access_token, urn=urn, logger=logger)
-            try:
-                ai_comment = feed.get('ai-comment', '') or None
-                logger.debug(f"Args passed to linkedinbot: {ai_comment or feed.get('description', '')}, {link_to_use}, {feed.get('category', [])}")
-                response = linkedinbot.post_link(
-                    text=ai_comment or feed.get('description', ''),
-                    link=link_to_use,
-                    category=feed.get('category', []),
-                )
-                logger.debug(f"Server response: {response}")
-            except Exception as e:
-                logger.error(f"Error while posting: {e}")
-        else:
-            logger.debug(f"Skipping Linkedin message for {feed.get('title', '')} due to mute setting.")
 
 def main():
     """
@@ -194,9 +116,10 @@ def main():
                 logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
                 # Send each new feed to all platforms
                 for feed in newfeeds:
-                    send_feed_to_telegram(feed, reader, logger, mute.is_mute_time())
-                    send_feed_to_bluesky(feed, reader, logger, mute.is_mute_time())
-                    send_feed_to_linkedin(feed, reader, logger, mute.is_mute_time())
+                    sender = SocialSender(reader, logger)
+                    sender.send_to_telegram(feed, mute.is_mute_time())
+                    sender.send_to_bluesky(feed, mute.is_mute_time())
+                    sender.send_to_linkedin(feed, mute.is_mute_time())
                 # Save updated feeds to file
                 filerss.set_data(feedstofile)
                 logger.debug(f"New feeds saved to {logfile}.")
