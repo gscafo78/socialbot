@@ -7,109 +7,13 @@
         },
         "bluesky": {
             "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://www.redhotcyber.com/feed/gn",
-        "ai": true,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
         },
-        "bluesky": {
+        "linkedin": {
             "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://www.ictsecuritymagazine.com/feed/",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://8bitsecurity.com/feed/",
-        "ai": true,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        },
-        "bluesky": {
-            "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://feeds.feedburner.com/TheHackersNews",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        },
-        "bluesky": {
-            "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://www.cshub.com/rss/articles",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        },
-        "bluesky": {
-            "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://www.cybersecurity-insiders.com/feed/",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://www.securityweek.com/rss",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        },
-        "bluesky": {
-            "bots": ["Username"]
-        }
-    },
-    {
-        "rss": "https://www.darkreading.com/rss.xml",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
         }
     },
     {
         "rss": "https://it.investing.com/rss/news_25.rss",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://www.ilfattoquotidiano.it/feed/",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://www.ilsole24ore.com/rss/italia.xml",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://www.ilsole24ore.com/rss/finanza-personale.xml",
-        "ai": false,
-        "telegram": {
-            "bots": ["Nome Of Bot"]
-        }
-    },
-    {
-        "rss": "https://www.ilsole24ore.com/rss/finanza.xml",
         "ai": false,
         "telegram": {
             "bots": ["Nome Of Bot"]

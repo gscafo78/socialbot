@@ -4,7 +4,7 @@
         "log_file": "/var/log/socialbot.log",
         "feeds_file": "path of feeds.json",
         "days_of_retention": 5,
-        "cron": "*/10 * * * 1-5", 
+        "cron": "*/10 * * * *", 
         "mute": {
             "from": "08:00",
             "to": "22:00"
@@ -38,13 +38,24 @@
                     "name": "Username",
                     "handle": "username.bsky.social",
                     "password": "YourPassword",
-                    "service": "https://bsky.social"
+                    "service": "https://bsky.social",
+                    "mute": true // if you want to mute the bot during the mute hours
                 },
                 {
                     "name": "Username",
                     "handle": "username.bsky.social",
                     "password": "YourPassword",
                     "service": "https://bsky.social"
+                }
+            ]
+        },
+        {
+            "linkedin": [
+                {
+                    "name": "Username",
+                    "urn": "your_urn",
+                    "access_token": "yourToken",
+                    "mute" : true
                 }
             ]
         }
