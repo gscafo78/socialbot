@@ -72,7 +72,7 @@ class LinkedInPublisher:
         Returns:
             dict: The LinkedIn API response.
         """
-        text += f"\n\n🔗 Link all'articolo {link}"  # Add link at the end of the text
+        text += f"\n\n🔗 Link all'articolo {link}."  # Add link at the end of the text
         if category:
             hashtags = ' '.join(f"#{str(c).lstrip('#').replace(' ', '')}" for c in category)
             text += f"\n\n{hashtags}"
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     title = "ChatGPT o3 rifiuta di spegnersi: abbiamo perso il controllo sull’Intelligenza Artificiale?"
     text = "Duro colpo per la sicurezza informatica: oltre 9.000 router Asus sono stati compromessi in una campagna stealth che ha portato alla creazione di una botnet. Scopri i dettagli e le implicazioni di questa violazione dei dati."
     description = "Ad oggi, o3 è il modello più recente e avanzato sviluppato da OpenAI. Recenti studi del gruppo di ricerca Palisade Research evidenziano come o3 e altri modelli possano aggirare istruzioni di spegnimento, sollevando preoccupazioni sul controllo umano e la necessità di regolamentazione nell'IA."
-    link = "http://8bitsecurity.com/?p=1965"
+    link = "https://www.redhotcyber.com/post/sniper-dz-phish-as-a-service-per-dare-slancio-al-cybercrimine/"
     img_link = "https://8bitsecurity.com/wp-content/uploads/2025/05/template_insight_blog.png"
     category = ['Artificial Intelligence', 'ArtificialIntelligence', 'cybersecurity', 'IntelligenzaArtificiale', 'sicurezzainformatica']
 

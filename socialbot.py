@@ -12,7 +12,7 @@ from senders.blueskysendmsg import BlueskyPoster
 from senders.linkedinpublisher import LinkedInPublisher
 import argparse
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 def send_feed_to_telegram(feed, 
                           reader, 
@@ -117,6 +117,9 @@ def send_feed_to_linkedin(feed,
                 if ai_comment == '':
                     ai_comment = None
 
+                logger.debug(f"Args passed to linkedinbot: {ai_comment or feed.get('description', '')}, {link_to_use}, {feed.get('category', [])}")
+                # Post to LinkedIn
+                
                 response = linkedinbot.post_link(
                     text=ai_comment or feed.get('description', ''),
                     link=link_to_use,
