@@ -14,46 +14,28 @@ import argparse
 
 __version__ = "0.0.9"
 
-def send_feed_to_telegram(feed, 
-                          reader, 
-                          logger,
-                          ismute=False):
+def send_feed_to_telegram(feed, reader, logger, ismute=False):
     """
     Send a single feed to all configured Telegram bots.
-
-    Args:
-        feed (dict): The feed data to send.
-        reader (JSONReader): The JSONReader instance for config.
-        logger (Logger): Logger instance.
     """
     bots = feed.get("telegram", {}).get("bots", [])
     for bot in bots:
         mute = False
-        token, chat_id, _ , mute = reader.get_social_values("telegram", bot)
+        token, chat_id, _, mute = reader.get_social_values("telegram", bot)
         if not mute or not ismute:
             logger.debug(f"Sending new feed to Telegram... {feed.get('title', '')}")                
             logger.debug(f"TelegramBotPublisher initialized with token {token} and chat_id {chat_id}.")
             telebot = TelegramBotPublisher(token, chat_id)
-            # Use short_link if present and not empty/None, otherwise use link
-            link_to_use = feed.get('short_link')
-            if not link_to_use:
-                link_to_use = feed.get('link', '')
+            # Use short_link if present, otherwise fallback to link
+            link_to_use = feed.get('short_link') or feed.get('link', '')
             logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
             telebot.send_message(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
         else:
             logger.debug(f"Skipping Telegram message for {feed.get('title', '')} due to mute setting.")
 
-def send_feed_to_bluesky(feed, 
-                         reader, 
-                         logger, 
-                         ismute=False):
+def send_feed_to_bluesky(feed, reader, logger, ismute=False):
     """
     Send a single feed to all configured Bluesky bots.
-
-    Args:
-        feed (dict): The feed data to send.
-        reader (JSONReader): The JSONReader instance for config.
-        logger (Logger): Logger instance.
     """
     bots = feed.get("bluesky", {}).get("bots", [])
     for bot in bots:
@@ -61,18 +43,13 @@ def send_feed_to_bluesky(feed,
         handle, password, service, mute = reader.get_social_values("bluesky", bot)
         if not mute or not ismute:
             logger.debug(f"Sending new feed to BlueSky... {feed.get('title', '')}")                
-            # Use short_link if present and not empty/None, otherwise use link
-            link_to_use = feed.get('short_link')
-            if not link_to_use:
-                link_to_use = feed.get('link', '')
+            # Use short_link if present, otherwise fallback to link
+            link_to_use = feed.get('short_link') or feed.get('link', '')
             logger.debug(f"BlueskyBotPublisher initialized with Handle {handle}, password {password} and service {service}.")
             logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
             blueskybot = BlueskyPoster(handle, password, service)
             try:
-                ai_comment = feed.get('ai-comment', '')
-                if ai_comment == '':
-                    ai_comment = None
-
+                ai_comment = feed.get('ai-comment', '') or None
                 response = blueskybot.post_feed(
                     description=feed.get('description', ''),
                     link=link_to_use,
@@ -82,22 +59,12 @@ def send_feed_to_bluesky(feed,
                 logger.debug(f"Server response: {response}")
             except Exception as e:
                 logger.error(f"Error while posting: {e}")
-                # Or, to log the stacktrace:
-                # logger.exception("Error while posting:")
         else:
             logger.debug(f"Skipping Bluesky message for {feed.get('title', '')} due to mute setting.")
 
-def send_feed_to_linkedin(feed, 
-                         reader, 
-                         logger, 
-                         ismute=False):
+def send_feed_to_linkedin(feed, reader, logger, ismute=False):
     """
-    Send a single feed to all configured Linkedin account.
-
-    Args:
-        feed (dict): The feed data to send.
-        reader (JSONReader): The JSONReader instance for config.
-        logger (Logger): Logger instance.
+    Send a single feed to all configured LinkedIn accounts.
     """
     bots = feed.get("linkedin", {}).get("bots", [])
     for bot in bots:
@@ -105,21 +72,14 @@ def send_feed_to_linkedin(feed,
         urn, access_token, _, mute = reader.get_social_values("linkedin", bot)
         if not mute or not ismute:
             logger.debug(f"Sending new feed to Linkedin... {feed.get('title', '')}")                
-            # Use short_link if present and not empty/None, otherwise use link
-            link_to_use = feed.get('short_link')
-            if not link_to_use:
-                link_to_use = feed.get('link', '')
-            logger.debug(f"LinkedinBotPublisher initialized with urn {urn}, access_toekn {access_token}.")
+            # Use short_link if present, otherwise fallback to link
+            link_to_use = feed.get('short_link') or feed.get('link', '')
+            logger.debug(f"LinkedinBotPublisher initialized with urn {urn}, access_token {access_token}.")
             logger.debug(f"{feed.get('title', '')}\n{feed.get('description', '')}\n{link_to_use}")
             linkedinbot = LinkedInPublisher(access_token, urn=urn, logger=logger)
             try:
-                ai_comment = feed.get('ai-comment', '')
-                if ai_comment == '':
-                    ai_comment = None
-
+                ai_comment = feed.get('ai-comment', '') or None
                 logger.debug(f"Args passed to linkedinbot: {ai_comment or feed.get('description', '')}, {link_to_use}, {feed.get('category', [])}")
-                # Post to LinkedIn
-                
                 response = linkedinbot.post_link(
                     text=ai_comment or feed.get('description', ''),
                     link=link_to_use,
@@ -128,8 +88,6 @@ def send_feed_to_linkedin(feed,
                 logger.debug(f"Server response: {response}")
             except Exception as e:
                 logger.error(f"Error while posting: {e}")
-                # Or, to log the stacktrace:
-                # logger.exception("Error while posting:")
         else:
             logger.debug(f"Skipping Linkedin message for {feed.get('title', '')} due to mute setting.")
 
@@ -170,7 +128,6 @@ def main():
 
     # --- Log file and update interval ---
     logfile = reader.get_value('settings', {}).get('log_file', '/var/log/socialbot.log')
-    base_time = datetime.now()
     cron = reader.get_value('settings', {}).get('cron', '0 * * * *')  # Default: every hour
     openai_comment_max_chars = reader.get_value('openai', {}).get('openai_comment_max_chars', 160) 
     openai_comment_language = reader.get_value('openai', {}).get('openai_comment_language', 'en')
@@ -179,11 +136,12 @@ def main():
     muteto = reader.get_value('settings', {}).get('mute', {}).get('to', '00:00')
     mute = MuteTimeChecker(mutefrom, muteto, logger=logger)
 
-    # --- Select GPT model ---
+    # --- Select GPT model if set to auto ---
     if gptmodel == "auto":
         logger.info("OpenAI model not set. Using auto model.")
         gptmodel = GPTModelSelector(reader.get_value('openai')['openai_key']).get_cheapest_gpt_model()
     
+    # --- Log startup information ---
     logger.info(f"Start SocialBot - Ver. {__version__}")
     logger.debug(f"File setting path: {file_path}")
     logger.info(f"Feeds file path: {feeds_path}")
@@ -195,20 +153,13 @@ def main():
     logger.info(f"OpenAI comment language: {openai_comment_language}")
 
     try:
-        mute_logged = False  # Track if mute message has already been logged
         while True:
-            # Calculate next run time using cron expression
-            iter_cron = croniter(cron, base_time)
-            next_run = iter_cron.get_next(datetime)
-            sleep_time = (next_run - datetime.now()).total_seconds()
-        # if not mute.is_mute_time():
-            # mute_logged = False  # Reset when not in mute
-            # --- Load previous RSS data ---
+            # --- Load previous RSS data from log file ---
             filerss = JSONReader(logfile, create=True, logger=logger)
             previousrss = filerss.get_data()
             logger.debug("Full JSON data loaded from log file.")
 
-            # --- Load feeds from config ---
+            # --- Load feeds from config file ---
             feeds = readfeeds.get_data()
             logger.debug(f"Value for key 'feeds': {feeds}")
             newfeeds = []
@@ -241,28 +192,30 @@ def main():
             if newfeeds:
                 logger.debug("New feeds found:")
                 logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
+                # Send each new feed to all platforms
                 for feed in newfeeds:
                     send_feed_to_telegram(feed, reader, logger, mute.is_mute_time())
                     send_feed_to_bluesky(feed, reader, logger, mute.is_mute_time())
                     send_feed_to_linkedin(feed, reader, logger, mute.is_mute_time())
-                # Save new feeds to file
+                # Save updated feeds to file
                 filerss.set_data(feedstofile)
                 logger.debug(f"New feeds saved to {logfile}.")
             else:
                 logger.info("No new feeds found.")
-        # else:
-        #     if not mute_logged:
-        #         logger.info("Mute time, skipping feed update.")
-        #         mute_logged = True
 
-            # --- Wait before next execution ---
+            # --- Calculate next execution time based on cron schedule ---
+            iter_cron = croniter(cron, datetime.now())
+            next_run = iter_cron.get_next(datetime)
+            sleep_time = (next_run - datetime.now()).total_seconds()
+
             if sleep_time < 0:
                 logger.warning(f"Sleep time was negative ({sleep_time}), setting to 0.")
                 sleep_time = 0
+            # Log waiting time only if not in mute interval
             if not mute.is_mute_time():
                 logger.info(f"Waiting {int(sleep_time/60)} minutes before the next execution...")
 
-            base_time = datetime.now()
+            # --- Wait until next scheduled run ---
             time.sleep(sleep_time)
     except KeyboardInterrupt:
         logger.info("Manual interruption received. Exiting program.")
@@ -271,17 +224,17 @@ def main():
 How to use this script:
 
 - Run the script directly: `python socialbot.py`
-- Use the `--config` option to specify a custom settings file.
-- Use the `--verbose` flag for debug logging.
+- Use the `--config` option to specify a custom configuration file.
+- Use the `--verbose` flag to enable debug logging.
 
-The main loop will:
+Main loop steps:
 1. Load configuration and feeds.
-2. Check if it's mute time (no posting).
+2. Check if current time is in mute interval (no posting).
 3. Fetch new RSS items and generate AI comments.
-4. Send new items to Telegram and Bluesky.
-5. Wait for the next scheduled run (cron-based).
+4. Send new items to Telegram, Bluesky, and LinkedIn.
+5. Wait until the next scheduled execution (based on cron).
 
-You can extend the script by adding new senders or modifying the feed processing logic.
+You can extend this script by adding new sender classes or modifying the feed processing logic.
 """
 
 if __name__ == "__main__":
