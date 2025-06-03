@@ -10,7 +10,7 @@ from gpt.getmodel import GPTModelSelector
 from senders.senders import SocialSender
 import argparse
 
-__version__ = "0.0.11"
+__version__ = "0.0.12"
 
 
 def main():

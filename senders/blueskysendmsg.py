@@ -219,14 +219,15 @@ class BlueskyPoster:
             self.create_session()
 
         if ai_comment:
-            text = f"{ai_comment}\n{link}"
+            text = f"{ai_comment}"
         else:
-            text = f"{title or ''}\n{description}\n{link}"
+            text = f"{title or ''}\n{description}"
 
         truncated_text = self.truncate_text(text)
         self.logger.debug(f"Text length: {len(truncated_text)} characters")
         embed = self.fetch_embed_url_card(link, more_info=more_info)
-        facets = self.create_facets(truncated_text, link) if link in truncated_text else []
+        # facets = self.create_facets(truncated_text, link) if link in truncated_text else []
+        facets = self.create_facets(truncated_text, link)
 
         post = {
             "$type": "app.bsky.feed.post",
