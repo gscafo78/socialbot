@@ -1,6 +1,7 @@
 import json
 import time
-from datetime import datetime, timedelta
+import random
+from datetime import datetime
 from croniter import croniter
 from utils.readjson import JSONReader
 from utils.logger import Logger
@@ -10,7 +11,7 @@ from gpt.getmodel import GPTModelSelector
 from senders.senders import SocialSender
 import argparse
 
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 
 
 def main():
@@ -75,6 +76,7 @@ def main():
     logger.info(f"OpenAI comment language: {openai_comment_language}")
 
     try:
+        sleep_time = 40
         while True:
             # --- Load previous RSS data from log file ---
             filerss = JSONReader(logfile, create=True, logger=logger)
@@ -116,6 +118,11 @@ def main():
                 logger.debug(json.dumps(newfeeds, indent=4, ensure_ascii=False, default=str))
                 # Send each new feed to all platforms
                 for feed in newfeeds:
+                    # --- Wait a random time between 0 and sleep_time-30 (if possible) ---
+                    if sleep_time > 30:
+                        random_wait = random.uniform(0, sleep_time - 30)
+                        logger.debug(f"Random wait before next send messages: {int(random_wait)} seconds.")
+                        time.sleep(random_wait)
                     sender = SocialSender(reader, logger)
                     sender.send_to_telegram(feed, mute.is_mute_time())
                     sender.send_to_bluesky(feed, mute.is_mute_time())
