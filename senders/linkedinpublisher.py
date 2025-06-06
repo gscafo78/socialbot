@@ -1,4 +1,4 @@
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 import requests
 import logging
@@ -72,10 +72,12 @@ class LinkedInPublisher:
         """
         text += f"\n\n🔗 Link all'articolo {link}."  # Add link at the end of the text
         if category:
+            text += "\n\n"
             sanitized = Category(category, logger=logging.getLogger(__name__))
             sanitized.sanitize()      # Clean and deduplicate categories
             hashtags = sanitized.hashtag()       # Generate hashtags from sanitized categories
-            text += f"\n\n{hashtags}"
+            for tag in hashtags:
+                text += f"{tag} "
             
         payload = {
             "author": f"urn:li:person:{self.urn}",
