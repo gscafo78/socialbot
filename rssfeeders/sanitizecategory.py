@@ -1,4 +1,4 @@
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 import logging
 
@@ -33,6 +33,9 @@ class Category:
                         continue
                     # Remove spaces and convert to lowercase
                     sanitized = c.replace(" ", "").lower()
+                    # Skip categories containing the character "'"
+                    if "'" in sanitized:
+                        continue
                     # Skip the category 'articoli'
                     if sanitized == "articoli":
                         continue
