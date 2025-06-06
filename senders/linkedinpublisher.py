@@ -1,6 +1,12 @@
+__version__ = "0.0.2"
+
 import requests
 import logging
 import json
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rssfeeders.sanitizecategory import Category
 
 class LinkedInPublisher:
     """
@@ -12,20 +18,17 @@ class LinkedInPublisher:
     DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
     MAX_POST_LENGTH = 299  # Bluesky's character limit
 
-
-
     def __init__(self,
                  access_token, 
                  urn=None,
                  api_url="https://api.linkedin.com/v2/", 
                  user_agent=None, 
                  logger=None):
-    
         self.access_token = access_token
         self.api_url = api_url
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
         self.logger = logger or logging.getLogger(__name__)
-        self.user_agent = user_agent or self.DEFAULT_USER_AGENT
+        self.urn = urn or self.get_user_urn()
         self.headers = {
             "Authorization": f"Bearer {self.access_token}",
             "X-Restli-Protocol-Version": "2.0.0",
@@ -42,11 +45,6 @@ class LinkedInPublisher:
             'sec-ch-ua-platform': '"Windows"',
         }
 
-        self.urn = urn or self.get_user_urn()
-        self.logger = logger or logging.getLogger(__name__)
-
-    
-    
     def get_user_urn(self):
         """
         Retrieves the user's URN (unique LinkedIn identifier).
@@ -56,7 +54,6 @@ class LinkedInPublisher:
         response.raise_for_status()
         self.logger.debug(f"User URN: {response.json()['sub']} retrieved successfully.")
         return response.json()['sub']
-
 
     def post_link(self, 
                   text, 
@@ -68,13 +65,16 @@ class LinkedInPublisher:
         Args:
             text (str): The text/comment to include in the post.
             link (str): The URL to share.
+            category (list): List of hashtags/categories.
 
         Returns:
             dict: The LinkedIn API response.
         """
         text += f"\n\n🔗 Link all'articolo {link}."  # Add link at the end of the text
         if category:
-            hashtags = ' '.join(f"#{str(c).lstrip('#').replace(' ', '')}" for c in category)
+            sanitized = Category(category, logger=logging.getLogger(__name__))
+            sanitized.sanitize()      # Clean and deduplicate categories
+            hashtags = sanitized.hashtag()       # Generate hashtags from sanitized categories
             text += f"\n\n{hashtags}"
             
         payload = {
@@ -90,8 +90,7 @@ class LinkedInPublisher:
                         {
                             "status": "READY",
                             "originalUrl": link
-                            # Rimossi i campi title e description per permettere a LinkedIn 
-                            # di generare automaticamente l'anteprima completa
+                            # Title and description fields removed to let LinkedIn generate the preview automatically
                         }
                     ]
                 }
@@ -106,24 +105,27 @@ class LinkedInPublisher:
         response.raise_for_status()
         return response.json()
 
-
-# Example usage:
-if __name__ == "__main__":
+def main():
+    """
+    Example usage of the LinkedInPublisher class:
+    - Publishes a post with a link and hashtags.
+    """
     import logging
-    
     logging.basicConfig(level=logging.DEBUG)
 
-    ACCESS_TOKEN = "XXXXXXXXXXXXXXXXXXXXXXXXXXX"  # Replace with your valid LinkedIn access token
-    URN = "XXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # Replace with your LinkedIn URN if known
-    title = "ChatGPT o3 rifiuta di spegnersi: abbiamo perso il controllo sull’Intelligenza Artificiale?"
+    ACCESS_TOKEN = "XXXXXXXXXXXXXXXXXXXXXXXXXX"  # Replace with your valid LinkedIn access token
+    URN = "XXXXXXXXXX"  # Replace with your LinkedIn URN if known
     text = "Duro colpo per la sicurezza informatica: oltre 9.000 router Asus sono stati compromessi in una campagna stealth che ha portato alla creazione di una botnet. Scopri i dettagli e le implicazioni di questa violazione dei dati."
-    description = "Ad oggi, o3 è il modello più recente e avanzato sviluppato da OpenAI. Recenti studi del gruppo di ricerca Palisade Research evidenziano come o3 e altri modelli possano aggirare istruzioni di spegnimento, sollevando preoccupazioni sul controllo umano e la necessità di regolamentazione nell'IA."
     link = "https://www.redhotcyber.com/post/sniper-dz-phish-as-a-service-per-dare-slancio-al-cybercrimine/"
-    img_link = "https://8bitsecurity.com/wp-content/uploads/2025/05/template_insight_blog.png"
     category = ['Artificial Intelligence', 'ArtificialIntelligence', 'cybersecurity', 'IntelligenzaArtificiale', 'sicurezzainformatica']
 
     publisher = LinkedInPublisher(ACCESS_TOKEN,
                                   urn=URN, 
                                   logger=logging.getLogger(__name__))
-    publisher.post_link(text, link, title, description)
+    response = publisher.post_link(text, link, category)
+    print("LinkedIn API response:")
+    print(json.dumps(response, indent=4, ensure_ascii=False, default=str))
+
+if __name__ == "__main__":
+    main()
 
