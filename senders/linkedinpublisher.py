@@ -74,8 +74,8 @@ class LinkedInPublisher:
         if category:
             text += "\n\n"
             sanitized = Category(category, logger=logging.getLogger(__name__))
-            sanitized.sanitize()      # Clean and deduplicate categories
-            hashtags = sanitized.hashtag()       # Generate hashtags from sanitized categories
+            sanitized.sanitize(5)               # Clean and deduplicate categories
+            hashtags = sanitized.hashtag()      # Generate hashtags from sanitized categories
             for tag in hashtags:
                 text += f"{tag} "
             
@@ -116,10 +116,40 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     ACCESS_TOKEN = "XXXXXXXXXXXXXXXXXXXXXXXXXX"  # Replace with your valid LinkedIn access token
-    URN = "XXXXXXXXXX"  # Replace with your LinkedIn URN if known
+    URN = "XXXXXXXXXXXXXXX"  # Replace with your LinkedIn URN if known
     text = "Duro colpo per la sicurezza informatica: oltre 9.000 router Asus sono stati compromessi in una campagna stealth che ha portato alla creazione di una botnet. Scopri i dettagli e le implicazioni di questa violazione dei dati."
-    link = "https://www.redhotcyber.com/post/sniper-dz-phish-as-a-service-per-dare-slancio-al-cybercrimine/"
-    category = ['Artificial Intelligence', 'ArtificialIntelligence', 'cybersecurity', 'IntelligenzaArtificiale', 'sicurezzainformatica']
+    link = "https://www.example.com/article-on-cybersecurity"  # Replace with your article link
+    category = [
+        "Articoli", 
+        "Cyber Crime", 
+        "Cyber Security", 
+        "cybercrime", 
+        "cybersecurity", 
+        "cyberspace", 
+        "Data Protection", 
+        "deepfake",
+        "digital security",
+        "Disinformazione",
+        "encrypting",
+        "Ivan Visconti",
+        "privacy protection",
+        "Zero Knowledge Proofs",
+        "ZKP",
+        "Articoli",
+        "Cyber Crime",
+        "Cyber Risk",
+        "Cyber Security",
+        "Bring Your Own Vulnerable Driver",
+        "BYOVD",
+        "BYOVD Attacks",
+        "Cyber Attacks",
+        "cyber defence",
+        "cyber threats",
+        "cybercrime",
+        "cybersecurity",
+        "Hacking"
+    ]
+
 
     publisher = LinkedInPublisher(ACCESS_TOKEN,
                                   urn=URN, 

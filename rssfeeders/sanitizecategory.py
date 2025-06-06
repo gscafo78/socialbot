@@ -1,6 +1,7 @@
 __version__ = "0.0.2"
 
 import logging
+import random
 
 class Category:
     def __init__(self, category, logger=None):
@@ -15,13 +16,14 @@ class Category:
         self.hashtag_category = None
         self.logger = logger or logging.getLogger(__name__)
 
-    def sanitize(self):
+    def sanitize(self, maxtag=None):
         """
         Sanitize the category or list of categories by:
         - Removing special characters and converting to lowercase.
         - Removing categories with more than 3 words.
         - Removing duplicates.
         - Removing the category 'articoli'.
+        - If maxtag is set, randomly select maxtag unique elements from the list.
         The result is saved in self.sanitized_category.
         """
         if isinstance(self.category, list):
@@ -48,6 +50,11 @@ class Category:
             sanitized_category = None if sanitized == "articoli" else sanitized
         else:
             sanitized_category = None
+
+        # If maxtag is set and the list is longer, randomly select maxtag unique elements
+        if maxtag and isinstance(sanitized_category, list) and len(sanitized_category) > maxtag:
+            sanitized_category = random.sample(sanitized_category, maxtag)
+            
         self.sanitized_category = sanitized_category
         self.logger.debug(f"Categories: {sanitized_category}")
         return 
