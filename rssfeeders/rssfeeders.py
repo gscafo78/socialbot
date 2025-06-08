@@ -259,11 +259,12 @@ class RSSFeeders:
                 # Generate AI comment if requested
                 if feed.get("ai") and openai_key and gptmodel:
                     gptcomment = ArticleCommentator(
-                        feed["link"], 
-                        openai_key, 
-                        gptmodel, 
-                        max_chars, 
-                        language
+                        link=feed["link"],
+                        api_key=openai_key,
+                        logger=self.logger,
+                        model=gptmodel,
+                        max_chars=max_chars,
+                        language=language
                     )
                     feed["ai-comment"] = gptcomment.generate_comment()
                 self.logger.info(f"Added new feed: {feed['link']}")

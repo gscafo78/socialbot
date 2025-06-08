@@ -1,135 +1,172 @@
-__version__ = "0.0.2"
+#!/usr/bin/env python3
+"""
+category_sanitizer.py  (version 1.0.0)
 
+Clean up category names and generate corresponding hashtags.
+
+Usage:
+    # Show version
+    python category_sanitizer.py --version
+
+    # Enable debug logging
+    python category_sanitizer.py --debug Technology Science "Cyber Security"
+
+    # Limit to at most 3 tags (randomly sampled)
+    python category_sanitizer.py --maxtag 3 Technology Science "Cyber Security"
+
+Requirements:
+    Only Python standard library (no external packages needed).
+"""
+
+import argparse
 import logging
 import random
+import sys
+from typing import List, Optional, Union
+
+__version__ = "1.0.0"
+
 
 class Category:
-    def __init__(self, category, logger=None):
-        """
-        Initialize the Category object.
-        Args:
-            category (str or list): The category or list of categories to sanitize.
-            logger (logging.Logger, optional): Logger instance for debug/info messages.
-        """
-        self.category = category
-        self.sanitized_category = None
-        self.hashtag_category = None
+    """
+    Sanitize category names and generate hashtags.
+
+    Args:
+        categories: A single category string or a list of category strings.
+        logger: Optional logging.Logger instance for debug/info output.
+
+    Attributes:
+        sanitized: The sanitized category or list of categories (after calling sanitize()).
+        hashtags: The list of hashtags generated (after calling hashtag()).
+    """
+
+    def __init__(
+        self,
+        categories: Union[str, List[str]],
+        logger: Optional[logging.Logger] = None,
+    ) -> None:
+        self.original = categories
+        self.sanitized: Optional[Union[str, List[str]]] = None
+        self.hashtags: Optional[List[str]] = None
         self.logger = logger or logging.getLogger(__name__)
 
-    def sanitize(self, maxtag=None):
+    def sanitize(self, maxtag: Optional[int] = None) -> None:
         """
-        Sanitize the category or list of categories by:
-        - Removing special characters and converting to lowercase.
-        - Removing categories with more than 3 words.
-        - Removing duplicates.
-        - Removing the category 'articoli'.
-        - If maxtag is set, randomly select maxtag unique elements from the list.
-        The result is saved in self.sanitized_category.
-        """
-        if isinstance(self.category, list):
-            sanitized_category = []
-            for c in self.category:
-                if isinstance(c, str):
-                    # Skip if more than 3 words
-                    if len(c.split()) > 3:
-                        continue
-                    # Remove spaces and convert to lowercase
-                    sanitized = c.replace(" ", "").lower()
-                    # Skip categories containing the character "'"
-                    if "'" in sanitized:
-                        continue
-                    # Skip the category 'articoli'
-                    if sanitized == "articoli":
-                        continue
-                    # Add only unique categories
-                    if sanitized not in sanitized_category:
-                        sanitized_category.append(sanitized)
-        elif isinstance(self.category, str):
-            sanitized = self.category.replace(" ", "").lower()
-            # Set to None if the category is 'articoli'
-            sanitized_category = None if sanitized == "articoli" else sanitized
-        else:
-            sanitized_category = None
+        Clean and deduplicate the category or list of categories.
 
-        # If maxtag is set and the list is longer, randomly select maxtag unique elements
-        if maxtag and isinstance(sanitized_category, list) and len(sanitized_category) > maxtag:
-            sanitized_category = random.sample(sanitized_category, maxtag)
-            
-        self.sanitized_category = sanitized_category
-        self.logger.debug(f"Categories: {sanitized_category}")
-        return 
-    
-    def hashtag(self):
+        - Converts to lowercase and removes spaces.
+        - Skips entries with more than 3 words.
+        - Skips entries containing apostrophes.
+        - Skips the category 'articoli'.
+        - Removes duplicates.
+        - If maxtag is set and the sanitized list exceeds it,
+          randomly samples maxtag items.
+
+        Args:
+            maxtag: Maximum number of tags to keep (random sample) if sanitized is a list.
         """
-        Generate a list of hashtags from the sanitized_category.
-        - Each hashtag is prefixed with '#'.
-        - The result is saved in self.hashtag_category.
+        result: Optional[Union[str, List[str]]]
+
+        if isinstance(self.original, list):
+            cleaned_list: List[str] = []
+            for item in self.original:
+                if not isinstance(item, str):
+                    continue
+                words = item.split()
+                if len(words) > 3:
+                    continue
+                cleaned = item.replace(" ", "").lower()
+                if "'" in cleaned or cleaned == "articoli":
+                    continue
+                if cleaned not in cleaned_list:
+                    cleaned_list.append(cleaned)
+            result = cleaned_list
+
+        elif isinstance(self.original, str):
+            cleaned = self.original.replace(" ", "").lower()
+            result = None if cleaned == "articoli" else cleaned
+
+        else:
+            result = None
+
+        # If result is a list and maxtag is specified, sample that many tags
+        if maxtag is not None and isinstance(result, list) and len(result) > maxtag:
+            try:
+                result = random.sample(result, maxtag)
+            except ValueError as e:
+                self.logger.error("Error sampling tags: %s", e)
+
+        self.sanitized = result
+        self.logger.debug("Sanitized categories → %s", self.sanitized)
+
+    def hashtag(self) -> Optional[List[str]]:
+        """
+        Generate hashtags from the sanitized categories.
+
         Returns:
-            list: List of hashtags.
+            A list of hashtags (each prefixed with '#'), or None if sanitize() wasn't run or result was None.
         """
-        if self.sanitized_category is None:
-            self.logger.warning("Sanitized category is None. Please run sanitize() first.")
+        if self.sanitized is None:
+            self.logger.warning("sanitize() must be called (and yield non-None) before hashtag().")
             return None
 
-        if isinstance(self.sanitized_category, list):
-            hashtag_category = [f"#{cat}" for cat in self.sanitized_category]
-        elif isinstance(self.sanitized_category, str):
-            hashtag_category = [f"#{self.sanitized_category}"]
+        if isinstance(self.sanitized, list):
+            tags = [f"#{cat}" for cat in self.sanitized]
         else:
-            hashtag_category = []
+            tags = [f"#{self.sanitized}"]
 
-        self.hashtag_category = hashtag_category
-        self.logger.debug(f"Hashtag categories: {hashtag_category}")
-        return hashtag_category
+        self.hashtags = tags
+        self.logger.debug("Generated hashtags → %s", tags)
+        return tags
 
-def main():
-    """
-    Example usage of the Category class:
-    - Sanitizes a list of categories.
-    - Generates hashtags from sanitized categories.
-    - Prints the results.
-    """
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    # Example list of categories (with duplicates, spaces, and 'articoli')
-    category = [
-        "Articoli", 
-        "Cyber Crime", 
-        "Cyber Security", 
-        "cybercrime", 
-        "cybersecurity", 
-        "cyberspace", 
-        "Data Protection", 
-        "deepfake",
-        "digital security",
-        "Disinformazione",
-        "encrypting",
-        "Ivan Visconti",
-        "privacy protection",
-        "Zero Knowledge Proofs",
-        "ZKP",
-        "Articoli",
-        "Cyber Crime",
-        "Cyber Risk",
-        "Cyber Security",
-        "Bring Your Own Vulnerable Driver",
-        "BYOVD",
-        "BYOVD Attacks",
-        "Cyber Attacks",
-        "cyber defence",
-        "cyber threats",
-        "cybercrime",
-        "cybersecurity",
-        "Hacking"
-    ]
-    sanitized = Category(category, logger=logging.getLogger(__name__))
-    sanitized.sanitize()      # Clean and deduplicate categories
-    hashtags = sanitized.hashtag()       # Generate hashtags from sanitized categories
-    print("Sanitized categories:", sanitized.sanitized_category)
-    print("Hashtags:", hashtags)
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Sanitize category names and generate hashtags."
+    )
+    parser.add_argument(
+        "categories",
+        nargs="+",
+        help="One or more category names (e.g. 'Cyber Security', 'Tech').",
+    )
+    parser.add_argument(
+        "--maxtag",
+        type=int,
+        help="Maximum number of tags to keep (randomly sampled) if multiple categories are provided.",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug-level logging.",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s v{__version__}",
+        help="Show program version and exit.",
+    )
+    args = parser.parse_args()
+
+    # Configure logging
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger("category_sanitizer")
+
+    # Instantiate and run
+    cat = Category(categories=args.categories, logger=logger)
+    cat.sanitize(maxtag=args.maxtag)
+    tags = cat.hashtag()
+
+    # Handle the case of no valid categories
+    if cat.sanitized is None or tags is None:
+        logger.error("No valid categories after sanitization.")
+        sys.exit(1)
+
+    # Output results
+    print("Sanitized categories:", cat.sanitized)
+    print("Hashtags:", tags)
+
 
 if __name__ == "__main__":
     main()
-
-
-

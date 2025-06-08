@@ -1,97 +1,230 @@
-from openai import OpenAI
+#!/usr/bin/env python3
+"""
+article_commentator.py  (version 0.0.1)
+
+Generate a colloquial summary and personal comment for an online article
+using OpenAI GPT models. If no model is supplied, selects the cheapest GPT
+model automatically.
+
+Usage:
+    # Show version:
+    python article_commentator.py --version
+
+    # Enable debug-level logging:
+    python article_commentator.py --debug --link URL --api-key YOUR_API_KEY
+
+    # Manually select model, set max chars and language:
+    python article_commentator.py \
+      --link URL \
+      --api-key YOUR_API_KEY \
+      --model gpt-4.1-nano \
+      --max-chars 200 \
+      --language it
+      
+
+Requirements:
+    pip install openai requests beautifulsoup4
+"""
+
+import argparse
+import logging
+import os
+import sys
+from typing import Optional
+
 import requests
 from bs4 import BeautifulSoup
-from .getmodel import GPTModelSelector
+from openai import OpenAI
+
+# Ensure getmodel.py (with GPTModelSelector) is importable
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from getmodel import GPTModelSelector  # noqa: E402
+
+__version__ = "0.0.1"
+
 
 class ArticleCommentator:
     """
-    Class to generate a comment for an article using OpenAI GPT models.
+    Generate a short, colloquial summary + personal comment for an article
+    URL using the OpenAI API.
 
     Args:
-        link (str): URL of the article.
-        openai_key (str): OpenAI API key.
-        model (str, optional): GPT model to use. If None, selects the cheapest available.
-        max_chars (int, optional): Maximum number of characters for the response.
-        language (str, optional): Language for the comment ('it' for Italian, 'en' for English).
+        link: URL of the target article.
+        api_key: OpenAI API key.
+        logger: A configured `logging.Logger` instance.
+        model: Optional GPT model name; if None, picks the cheapest GPT model.
+        max_chars: Maximum length of the generated comment in characters.
+        language: 'en' for English or 'it' for Italian.
+
+    Methods:
+        extract_text() -> str: Retrieves and concatenates all <p> text from the article.
+        generate_comment() -> str: Calls OpenAI with a system+user prompt and returns the answer.
     """
-    def __init__(self, link, openai_key, model=None, max_chars=160, language="en"):
+
+    def __init__(
+        self,
+        link: str,
+        api_key: str,
+        logger: logging.Logger,
+        model: Optional[str] = None,
+        max_chars: int = 299,
+        language: str = "en",
+    ) -> None:
+        if not link:
+            raise ValueError("Article URL (--link) must be provided.")
+        if not api_key:
+            raise ValueError("OpenAI API key (--api-key or OPENAI_API_KEY) is required.")
+
         self.link = link
-        self.openai_key = openai_key
+        self.api_key = api_key
+        self.logger = logger
         self.max_chars = max_chars
-        self.language = language
-        # If no model is provided, select the cheapest GPT model automatically
-        if model is None:
-            selector = GPTModelSelector(self.openai_key)
-            self.model = selector.get_cheapest_gpt_model()
-            # print(f"Automatic model selection: {self.model}")
-        else:
+        self.language = language.lower()
+
+        # Determine which GPT model to use
+        if model:
             self.model = model
-        self.client = OpenAI(api_key=self.openai_key)
-    
-    def extract_text(self):
+            self.logger.info("Using user‑specified model: %s", self.model)
+        else:
+            selector = GPTModelSelector(api_key=self.api_key, logger=self.logger)
+            self.model = selector.get_cheapest_gpt_model()
+            self.logger.info("Auto‑selected cheapest GPT model: %s", self.model)
+
+        # Initialize OpenAI client
+        self.client = OpenAI(api_key=self.api_key)
+
+    def extract_text(self) -> str:
         """
-        Extracts the main text from the article at the provided URL.
+        Fetches the article page and concatenates all <p> tags into one text blob.
+
+        Returns:
+            The article text, or an empty string on failure.
         """
-        response = requests.get(self.link)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        paragraphs = soup.find_all('p')
-        full_text = ' '.join([p.get_text() for p in paragraphs])
-        return full_text
-    
-    def generate_comment(self):
+        try:
+            resp = requests.get(self.link, timeout=10)
+            resp.raise_for_status()
+        except Exception as e:
+            self.logger.error("Failed to fetch article at %s: %s", self.link, e)
+            return ""
+
+        soup = BeautifulSoup(resp.content, "html.parser")
+        paragraphs = soup.find_all("p")
+        text = " ".join(p.get_text(strip=True) for p in paragraphs)
+        self.logger.debug("Extracted %d paragraphs, total %d chars", len(paragraphs), len(text))
+        return text
+
+    def generate_comment(self) -> str:
         """
-        Generates a comment for the article using the selected GPT model.
-        The comment is written in the language specified during initialization.
+        Builds and sends a chat completion request to OpenAI to summarize
+        and comment on the article in the requested language.
+
+        Returns:
+            The GPT‑generated comment (possibly truncated), or an empty string on failure.
         """
         article_text = self.extract_text()
-        if not article_text.strip():
+        if not article_text:
+            self.logger.error("No article text extracted; aborting comment generation.")
             return ""
-        if self.language == "en":
-            answare = "English"
-        elif self.language == "it":
-            answare = "Italian"
+
+        if self.language == "it":
+            lang_name = "Italian"
+        elif self.language == "en":
+            lang_name = "English"
         else:
-            raise ValueError("Invalid language. Use 'en' for English or 'it' for Italian.") 
+            raise ValueError("Language must be 'en' or 'it'")
 
         prompt = (
-            f"Read and summarize in a colloquial and natural way in {answare} the following article, "
-            f"also giving a personal comment as if you had read it: {article_text}"
+            f"Read and summarize the following article in a colloquial, natural way "
+            f"in {lang_name}, then add a personal comment as if you had read it:\n\n"
+            f"{article_text}"
         )
-        system_message = (
-            f"You are an expert article commentator, able to summarize and comment in a colloquial way. "
-            f"Do not sponsor advertisements in the article. The answer must be a maximum of {self.max_chars} characters."
+        system_msg = (
+            f"You are an expert article commentator. Summarize and comment in a "
+            f"colloquial style without advertising. "
+            f"Reply in {lang_name}, max {self.max_chars} characters."
         )
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content
+        self.logger.debug("Sending chat completion: model=%s, max_chars=%d", self.model, self.max_chars)
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            content = response.choices[0].message.content.strip()
+            self.logger.info("Received response of %d chars", len(content))
+            return content[: self.max_chars]
+        except Exception as e:
+            self.logger.error("OpenAI API error: %s", e)
+            return ""
 
-def main():    
-    """
-    Example usage:
-    Prompts the user for article URL, max characters, language, and model selection.
-    Generates and prints a comment for the article.
-    """
-    article_link = "https://www.redhotcyber.com/post/falso-mito-se-uso-una-vpn-sono-completamente-al-sicuro-anche-su-reti-wifi-aperte-e-non-sicure/"
-    openai_key = "XXXXXXXXXXXXXXXXXXXXXXXXXXX" # Replace with your OpenAI API key
-    # max_caratteri = int(input("Inserisci il numero massimo di caratteri per la risposta: "))
-    # lingua = input("Lingua della risposta ('it' per italiano, 'en' per inglese): ").strip().lower()
-    
-    # scelta = input("Vuoi selezionare il modello manualmente? (s/n): ").strip().lower()
-    # if scelta == "s":
-    #     modello = input("Inserisci il nome del modello GPT da usare (es: gpt-4.1-nano): ").strip()
-    # else:
-    #     modello = None
 
-    # commentatore = ArticleCommentator(article_link, openai_key, modello, max_caratteri, lingua)
-    commentator = ArticleCommentator(article_link, openai_key)
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate a colloquial summary+comment for an article via OpenAI GPT."
+    )
+    parser.add_argument(
+        "--link",
+        required=True,
+        help="URL of the article to process",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=os.getenv("OPENAI_API_KEY"),
+        help="OpenAI API key (or set OPENAI_API_KEY environment variable)",
+    )
+    parser.add_argument(
+        "--model",
+        help="GPT model to use (e.g. gpt-4.1-nano). If omitted, selects cheapest GPT model.",
+    )
+    parser.add_argument(
+        "--max-chars",
+        type=int,
+        default=160,
+        help="Maximum characters for the generated comment (default: 160)",
+    )
+    parser.add_argument(
+        "--language",
+        choices=("en", "it"),
+        default="en",
+        help="Language for the comment: 'en' or 'it' (default: en)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug-level logging",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s v{__version__}",
+        help="Show program version and exit",
+    )
+    args = parser.parse_args()
+
+    # Configure root logger
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=level, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger("article_commentator")
+
+    commentator = ArticleCommentator(
+        link=args.link,
+        api_key=args.api_key or "",
+        logger=logger,
+        model=args.model,
+        max_chars=args.max_chars,
+        language=args.language,
+    )
     comment = commentator.generate_comment()
-    print(comment)
+    if comment:
+        print(comment)
+    else:
+        logger.error("No comment generated.")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
