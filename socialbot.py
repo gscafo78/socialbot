@@ -104,7 +104,7 @@ def main():
             rss = RSSFeeders(
                 feeds, 
                 previousrss, 
-                retention=reader.get_value('settings')['days_of_retention'], 
+                retention_days=reader.get_value('settings')['days_of_retention'], 
                 logger=logger
             )
 
