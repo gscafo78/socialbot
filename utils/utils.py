@@ -1,5 +1,8 @@
 from datetime import datetime
-from utils.logger import Logger
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from logger import Logger
 
 class MuteTimeChecker:
     """
