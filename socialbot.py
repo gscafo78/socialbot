@@ -62,7 +62,10 @@ def main():
     # --- Select GPT model if set to auto ---
     if gptmodel == "auto":
         logger.info("OpenAI model not set. Using auto model.")
-        gptmodel = GPTModelSelector(reader.get_value('openai')['openai_key']).get_cheapest_gpt_model()
+        gptmodel = GPTModelSelector(
+            reader.get_value('openai')['openai_key'],
+            logger
+        ).get_cheapest_gpt_model()
     
     # --- Log startup information ---
     logger.info(f"Start SocialBot - Ver. {__version__}")
