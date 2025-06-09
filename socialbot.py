@@ -127,8 +127,8 @@ def main():
                         logger.debug(f"Random wait before next send messages: {int(random_wait)} seconds.")
                         time.sleep(random_wait)
                     sender = SocialSender(reader, logger)
-                    sender.send_to_telegram(feed, mute.is_mute_time())
-                    sender.send_to_bluesky(feed, mute.is_mute_time())
+                    # sender.send_to_telegram(feed, mute.is_mute_time())
+                    # sender.send_to_bluesky(feed, mute.is_mute_time())
                     sender.send_to_linkedin(feed, mute.is_mute_time())
                 # Save updated feeds to file
                 filerss.set_data(feedstofile)
