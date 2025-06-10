@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-article_commentator.py  (version 0.0.1)
+article_commentator.py  (version 0.0.2)
 
 Generate a colloquial summary and personal comment for an online article
 using OpenAI GPT models. If no model is supplied, selects the cheapest GPT
@@ -13,9 +13,10 @@ Usage:
     # Enable debug-level logging:
     python article_commentator.py --debug --link URL --api-key YOUR_API_KEY
 
-    # Manually select model, set max chars and language:
+    # Manually select base url, model, set max chars and language:
     python article_commentator.py \
       --link URL \
+      --base_url your API base url endpoint \
       --api-key YOUR_API_KEY \
       --model gpt-4.1-nano \
       --max-chars 200 \
@@ -40,7 +41,7 @@ from openai import OpenAI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from getmodel import GPTModelSelector  # noqa: E402
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 class ArticleCommentator:
@@ -50,6 +51,7 @@ class ArticleCommentator:
 
     Args:
         link: URL of the target article.
+        base_url: Optional custom base URL for the OpenAI API. If None, uses the default OpenAI endpoint.
         api_key: OpenAI API key.
         logger: A configured `logging.Logger` instance.
         model: Optional GPT model name; if None, picks the cheapest GPT model.
@@ -66,6 +68,7 @@ class ArticleCommentator:
         link: str,
         api_key: str,
         logger: logging.Logger,
+        base_url: Optional[str] = None,
         model: Optional[str] = None,
         max_chars: int = 299,
         language: str = "en",
@@ -80,6 +83,7 @@ class ArticleCommentator:
         self.logger = logger
         self.max_chars = max_chars
         self.language = language.lower()
+        self.base_url = base_url or "https://api.openai.com/v1"
 
         # Determine which GPT model to use
         if model:
@@ -91,7 +95,8 @@ class ArticleCommentator:
             self.logger.info("Auto‑selected cheapest GPT model: %s", self.model)
 
         # Initialize OpenAI client
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(base_url=self.base_url,
+                             api_key=self.api_key)
 
     def extract_text(self) -> str:
         """
@@ -192,6 +197,11 @@ def main() -> None:
         help="Language for the comment: 'en' or 'it' (default: en)",
     )
     parser.add_argument(
+        "--base-url",
+        default=None,
+        help="Custom base URL for the OpenAI API (optional). If not provided, uses the default endpoint.",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug-level logging",
@@ -214,6 +224,7 @@ def main() -> None:
         link=args.link,
         api_key=args.api_key or "",
         logger=logger,
+        base_url=args.base_url,
         model=args.model,
         max_chars=args.max_chars,
         language=args.language,

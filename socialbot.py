@@ -174,9 +174,9 @@ def main():
 
                     sender = SocialSender(reader, logger)
                     mute_flag = mute_checker.is_mute_time()
-                    sender.send_to_telegram(item, mute_flag)
-                    sender.send_to_bluesky(item, mute_flag)
-                    sender.send_to_linkedin(item, mute_flag)
+                    # sender.send_to_telegram(item, mute_flag)
+                    # sender.send_to_bluesky(item, mute_flag)
+                    # sender.send_to_linkedin(item, mute_flag)
 
                 # Persist updated history
                 history_reader.set_data(updated_history)
