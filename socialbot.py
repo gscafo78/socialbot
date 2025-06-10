@@ -32,7 +32,7 @@ from croniter import croniter
 from utils.readjson import JSONReader
 from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
-from gpt.getmodel import GPTModelSelector
+# from gpt.getmodel import GPTModelSelector
 from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 
@@ -114,6 +114,9 @@ def main():
         gpt_model = cheapest_model.id
         gpt_in_price = cheapest_model.prompt_price
         gpt_out_price = cheapest_model.completion_price
+    else:
+        gpt_in_price = 0
+        gpt_out_price = 0
 
     # --- Startup logging -------------------------------------------------------
     logger.info("Starting SocialBot – version %s", __version__)
@@ -165,6 +168,7 @@ def main():
                 all_feeds,
                 seen_items,
                 retention_days=retention_days,
+                base_url=ai_base_url,
                 logger=logger
             )
             new_items, updated_history = rss.get_new_feeders(
