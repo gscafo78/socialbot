@@ -16,7 +16,7 @@ Usage examples:
   python social_sender.py --config ./settings.json --debug
 """
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 import argparse
 import logging
@@ -63,7 +63,7 @@ class SocialSender:
             token, chat_id, _, mute = self.reader.get_social_values("telegram", bot_name)
 
             # Skip if bot is muted (unless globally overridden via ismute)
-            if mute and not ismute:
+            if mute and ismute:
                 self.logger.debug(
                     "Skipping Telegram message for '%s' due to mute setting.", feed.get("title", "")
                 )
@@ -95,7 +95,7 @@ class SocialSender:
         for bot_name in bots:
             handle, password, service, mute = self.reader.get_social_values("bluesky", bot_name)
 
-            if mute and not ismute:
+            if mute and ismute:
                 self.logger.debug(
                     "Skipping Bluesky message for '%s' due to mute setting.", feed.get("title", "")
                 )

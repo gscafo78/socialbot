@@ -11,7 +11,7 @@ from gpt.getmodel import GPTModelSelector
 from senders.senders import SocialSender
 import argparse
 
-__version__ = "0.0.16"
+__version__ = "0.0.17"
 
 
 def main():
@@ -127,8 +127,8 @@ def main():
                         logger.debug(f"Random wait before next send messages: {int(random_wait)} seconds.")
                         time.sleep(random_wait)
                     sender = SocialSender(reader, logger)
-                    # sender.send_to_telegram(feed, mute.is_mute_time())
-                    # sender.send_to_bluesky(feed, mute.is_mute_time())
+                    sender.send_to_telegram(feed, mute.is_mute_time())
+                    sender.send_to_bluesky(feed, mute.is_mute_time())
                     sender.send_to_linkedin(feed, mute.is_mute_time())
                 # Save updated feeds to file
                 filerss.set_data(feedstofile)
