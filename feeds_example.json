@@ -13,7 +13,7 @@
         }
     },
     {
-        "rss": "https://it.investing.com/rss/news_25.rss",
+        "rss": "https://it.investing.com/rss/news_25.rss", // Investing.com Italy
         "ai": false,
         "telegram": {
             "bots": ["Nome Of Bot"]

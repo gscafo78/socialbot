@@ -21,7 +21,7 @@ import logging
 # ------------------------------------------------------------------------------
 # Module version
 # ------------------------------------------------------------------------------
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # ------------------------------------------------------------------------------
@@ -93,10 +93,33 @@ class JSONReader:
                 self.data = None
             return
 
-        # Read existing file
+        # Read existing file, removing lines with comments (//)
         try:
             with open(self.file_path, 'r', encoding="utf-8") as fp:
-                self.data = json.load(fp)
+                lines = fp.readlines()
+            # Remove lines that start with // and strip inline // comments
+            cleaned_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("//"):
+                    continue
+                # Remove inline comments (// ...) but not inside strings
+                if '//' in line:
+                    in_string = False
+                    new_line = ''
+                    i = 0
+                    while i < len(line):
+                        if line[i] == '"':
+                            in_string = not in_string
+                        if not in_string and line[i:i+2] == '//':
+                            break
+                        new_line += line[i]
+                        i += 1
+                    cleaned_lines.append(new_line.rstrip())
+                else:
+                    cleaned_lines.append(line.rstrip())
+            json_str = '\n'.join(cleaned_lines)
+            self.data = json.loads(json_str)
             self.logger.debug("Successfully loaded JSON data from '%s'.", self.file_path)
 
         except FileNotFoundError:
