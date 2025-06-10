@@ -35,7 +35,7 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
 from senders.senders import SocialSender
 
-__version__ = "0.0.18"
+__version__ = "0.0.19"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -95,6 +95,7 @@ def main():
 
     openai_max_chars = reader.get_value("openai", {}).get("openai_comment_max_chars", 160)
     openai_lang = reader.get_value("openai", {}).get("openai_comment_language", "en")
+    ai_base_url = reader.get_value("openai", {}).get("openai_base_url", "https://api.openai.com/v1")
     gpt_model = reader.get_value("openai", {}).get("openai_model", "gpt-4.1-nano")
     openai_key = reader.get_value("openai", {}).get("openai_key", None)
 
@@ -117,6 +118,8 @@ def main():
         "Mute window from %s to %s → is_mute_time=%s",
         mute_from, mute_to, mute_checker.is_mute_time()
     )
+    logger.info("Retention days: %s", retention_days)
+    logger.info("OpenAI Base Url: %s", ai_base_url)
     logger.info("OpenAI model: %s", gpt_model)
     logger.info("OpenAI comment max chars: %s", openai_max_chars)
     logger.info("OpenAI comment language: %s", openai_lang)
@@ -174,9 +177,9 @@ def main():
 
                     sender = SocialSender(reader, logger)
                     mute_flag = mute_checker.is_mute_time()
-                    # sender.send_to_telegram(item, mute_flag)
-                    # sender.send_to_bluesky(item, mute_flag)
-                    # sender.send_to_linkedin(item, mute_flag)
+                    sender.send_to_telegram(item, mute_flag)
+                    sender.send_to_bluesky(item, mute_flag)
+                    sender.send_to_linkedin(item, mute_flag)
 
                 # Persist updated history
                 history_reader.set_data(updated_history)
