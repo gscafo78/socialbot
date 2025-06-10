@@ -36,7 +36,7 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 
-__version__ = "0.0.20"
+__version__ = "0.0.21"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -131,7 +131,7 @@ def main():
     logger.info("Retention days: %s", retention_days)
     logger.info("AI Base Url: %s", ai_base_url)
     logger.info(
-        "AI model: %s - $%.2f/M input | $%.2f/M output",
+        "AI model: %s - $%.2f/M input tokens | $%.2f/M output tokens",
         gpt_model,
         round(gpt_in_price * 1_000_000, 2),
         round(gpt_out_price * 1_000_000, 2)
