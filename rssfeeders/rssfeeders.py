@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-rss_feeders.py  (version 1.0.0)
+rss_feeders.py  (version 0.1.0)
 
 Fetch and process the latest items from one or more RSS feeds.  Optionally
-generate AI comments on new entries via OpenAI GPT models.
+generate AI comments on new entries via AI GPT models.
 
 Usage:
     # Show version
@@ -23,7 +23,8 @@ Usage:
     python rss_feeders.py \
       --feeds https://8bitsecurity.com/feed/ \
       --previous-file seen.json \
-      --openai-key sk-... \
+      --ai-key sk-... \
+      --base-url https://api.openai.com/v1 \
       --model gpt-4.1-nano \
       --language it \
       --max-chars 160
@@ -50,14 +51,13 @@ import feedparser
 import html
 import requests
 from bs4 import BeautifulSoup
-from openai import OpenAI
 
 # Ensure your utils.logger and gptcomment modules are on PYTHONPATH
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.logger import Logger                # noqa: E402
-from gpt.gptcomment import ArticleCommentator   # noqa: E402
+from utils.logger import Logger                
+from gpt.gptcomment import ArticleCommentator   
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 
 
 class RSSFeeders:
@@ -67,6 +67,7 @@ class RSSFeeders:
 
     Args:
         feeds:           List of dicts, each with key 'rss' for the feed URL.
+        base_url:        Base URL for the feed (if needed).
         previous:        Previously seen items (to avoid duplicates).
         retention_days:  How many days to keep old entries in the previous list.
         logger:          A configured Logger instance (injected).
@@ -79,18 +80,22 @@ class RSSFeeders:
         "Chrome/136.0.0.0 Safari/537.36 Edg/136.0.3240.92"
     )
 
+    DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
     def __init__(
         self,
         feeds: List[Dict[str, Any]],
         previous: List[Dict[str, Any]],
         retention_days: int,
         logger: logging.Logger,
+        base_url: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> None:
         self.feeds = feeds.copy()
         self.previous = previous.copy()
         self.retention_days = retention_days
         self.logger = logger
+        self.base_url = base_url or self.DEFAULT_BASE_URL
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
 
     def _prune_previous(self) -> None:
@@ -218,7 +223,7 @@ class RSSFeeders:
 
     def get_new_feeders(
         self,
-        openai_key: Optional[str] = None,
+        ai_key: Optional[str] = None,
         gptmodel: Optional[str] = None,
         max_chars: int = 160,
         language: str = "en",
@@ -227,7 +232,7 @@ class RSSFeeders:
         Process all feeds in parallel, compare to previously seen entries,
         and return any NEW items + the updated previous list (pruned/extended).
 
-        If openai_key & gptmodel are provided, also generate an AI comment
+        If ai_key & gptmodel are provided, also generate an AI comment
         for feeds whose dict has feed['ai'] == True.
 
         Returns:
@@ -252,12 +257,13 @@ class RSSFeeders:
             out = {**fdict, **info}
 
             # Optionally generate AI comment
-            if fdict.get("ai") and openai_key and gptmodel:
+            if fdict.get("ai") and ai_key and gptmodel:
                 commentator = ArticleCommentator(
                     link=out["link"],
-                    api_key=openai_key,
+                    api_key=ai_key,
                     logger=self.logger,
                     model=gptmodel,
+                    base_url=self.base_url,
                     max_chars=max_chars,
                     language=language,
                 )
@@ -332,9 +338,9 @@ def main() -> None:
         help="Days to retain old items in the previous list (default: 10).",
     )
     parser.add_argument(
-        "--openai-key",
-        default=os.getenv("OPENAI_API_KEY"),
-        help="OpenAI API key (or set OPENAI_API_KEY).",
+        "--ai-key",
+        default=os.getenv("AI_API_KEY"),
+        help="AI API key (or set AI_API_KEY).",
     )
     parser.add_argument(
         "--model",
@@ -355,6 +361,11 @@ def main() -> None:
     parser.add_argument(
         "--user-agent",
         help="Custom HTTP User-Agent header for RSS requests.",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help="Custom base URL for the AI API (default: https://api.openai.com/v1).",
     )
     parser.add_argument(
         "--debug",
@@ -382,18 +393,19 @@ def main() -> None:
         logger.info("Loaded %d previous items from %s", len(previous_list), args.previous_file)
 
     # Build feed dicts (add 'ai'=True if model/key present)
-    feeds = [{"rss": url, "ai": bool(args.openai_key and args.model)} for url in args.feeds]
+    feeds = [{"rss": url, "ai": bool(args.ai_key and args.model)} for url in args.feeds]
 
     feeder = RSSFeeders(
         feeds=feeds,
         previous=previous_list,
         retention_days=args.retention,
         logger=logger,
+        base_url=args.base_url,
         user_agent=args.user_agent,
     )
 
     new_items, updated_previous = feeder.get_new_feeders(
-        openai_key=args.openai_key,
+        ai_key=args.ai_key,
         gptmodel=args.model,
         max_chars=args.max_chars,
         language=args.language,

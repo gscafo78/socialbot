@@ -4,7 +4,7 @@ socialbot.py
 
 Main runner for SocialBot:
   - Periodically fetches RSS feeds  
-  - Generates AI comments via OpenAI GPT  
+  - Generates AI comments   
   - Dispatches new items to Telegram, Bluesky, and LinkedIn  
   - Honors quiet/mute schedules  
   - Schedules next run based on a cron expression  
@@ -33,9 +33,10 @@ from utils.readjson import JSONReader
 from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
 from gpt.getmodel import GPTModelSelector
+from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 
-__version__ = "0.0.19"
+__version__ = "0.0.20"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -93,11 +94,11 @@ def main():
     cron_expr = reader.get_value("settings", {}).get("cron", "0 * * * *")
     retention_days = reader.get_value("settings", {}).get("days_of_retention", None)
 
-    openai_max_chars = reader.get_value("openai", {}).get("openai_comment_max_chars", 160)
-    openai_lang = reader.get_value("openai", {}).get("openai_comment_language", "en")
-    ai_base_url = reader.get_value("openai", {}).get("openai_base_url", "https://api.openai.com/v1")
-    gpt_model = reader.get_value("openai", {}).get("openai_model", "gpt-4.1-nano")
-    openai_key = reader.get_value("openai", {}).get("openai_key", None)
+    ai_max_chars = reader.get_value("ai", {}).get("ai_comment_max_chars", 160)
+    ai_lang = reader.get_value("ai", {}).get("ai_comment_language", "en")
+    ai_base_url = reader.get_value("ai", {}).get("ai_base_url", "https://api.openai.com/v1")
+    gpt_model = reader.get_value("ai", {}).get("ai_model", "gpt-4.1-nano")
+    ai_key = reader.get_value("ai", {}).get("ai_key", None)
 
     mute_from = reader.get_value("settings", {}).get("mute", {}).get("from", "00:00")
     mute_to = reader.get_value("settings", {}).get("mute", {}).get("to", "00:00")
@@ -105,8 +106,14 @@ def main():
 
     # --- Auto‑select GPT model if requested -----------------------------------
     if gpt_model == "auto":
-        logger.info("OpenAI model set to 'auto', selecting cheapest GPT model …")
-        gpt_model = GPTModelSelector(openai_key, logger).get_cheapest_gpt_model()
+        logger.info("AI model set to 'auto', selecting cheapest GPT model …")
+        # gpt_model = GPTModelSelector(ai_key, logger).get_cheapest_gpt_model()
+        raw = Model.fetch_raw_models(logger)
+        models = Model.process_models(raw, logger)
+        cheapest_model = Model.find_cheapest_model(models, logger, filter_str="openai")
+        gpt_model = cheapest_model.id
+        gpt_in_price = cheapest_model.prompt_price
+        gpt_out_price = cheapest_model.completion_price
 
     # --- Startup logging -------------------------------------------------------
     logger.info("Starting SocialBot – version %s", __version__)
@@ -119,10 +126,15 @@ def main():
         mute_from, mute_to, mute_checker.is_mute_time()
     )
     logger.info("Retention days: %s", retention_days)
-    logger.info("OpenAI Base Url: %s", ai_base_url)
-    logger.info("OpenAI model: %s", gpt_model)
-    logger.info("OpenAI comment max chars: %s", openai_max_chars)
-    logger.info("OpenAI comment language: %s", openai_lang)
+    logger.info("AI Base Url: %s", ai_base_url)
+    logger.info(
+        "AI model: %s - $%.2f/M input | $%.2f/M output",
+        gpt_model,
+        round(gpt_in_price * 1_000_000, 2),
+        round(gpt_out_price * 1_000_000, 2)
+    )
+    logger.info("AI comment max chars: %s", ai_max_chars)
+    logger.info("AI comment language: %s", ai_lang)
 
     # --- Main fetch→post→sleep loop -------------------------------------------
     try:
@@ -156,10 +168,10 @@ def main():
                 logger=logger
             )
             new_items, updated_history = rss.get_new_feeders(
-                openai_key,
+                ai_key,
                 gpt_model,
-                openai_max_chars,
-                openai_lang
+                ai_max_chars,
+                ai_lang
             )
 
             if new_items:
