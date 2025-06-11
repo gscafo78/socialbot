@@ -47,7 +47,35 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 def main():
     """
     Main entry point for SocialBot.
-    Parses arguments, loads configuration, then enters the fetch→post→sleep loop.
+
+    - Parses command-line arguments and loads configuration files.
+    - Sets up logging and scheduling (cron).
+    - Loads RSS feeds and previously seen items.
+    - Detects new RSS items and (optionally) generates AI comments.
+    - Dispatches new items to Telegram, Bluesky, and LinkedIn via SocialSender.
+    - Honors mute/quiet time windows.
+    - Sleeps until the next scheduled run.
+
+    Args (from argparse and config):
+        --version              Show program version and exit.
+        -c, --config           Path to configuration file (default: ./settings.json).
+        --debug                Enable DEBUG-level logging (default is INFO).
+
+    Config file options (settings.json):
+        feeds_file             Path to feeds file (default: ./feeds.json).
+        log_file               Path to log/history file.
+        cron                   Cron expression for scheduling.
+        days_of_retention      How many days to keep old items.
+        mute.from              Start time for mute window (HH:MM).
+        mute.to                End time for mute window (HH:MM).
+        ai_comment_max_chars   Max chars for AI-generated comments.
+        ai_comment_language    Language for AI comments ("en", "it", ...).
+        ai_base_url            Base URL for AI API (default: https://api.openai.com/v1).
+        ai_model               GPT model to use (or "auto" for cheapest).
+        ai_key                 OpenAI API key.
+
+    Returns:
+        None
     """
 
     # --- Parse command‐line arguments ------------------------------------------
@@ -163,13 +191,15 @@ def main():
                 feed.setdefault("title", "")
                 feed.setdefault("ai-comment", "")
 
+            mute_flag = mute_checker.is_mute_time()
             # Detect new items & generate AI comments
             rss = RSSFeeders(
                 all_feeds,
                 seen_items,
                 retention_days=retention_days,
                 base_url=ai_base_url,
-                logger=logger
+                logger=logger,
+                mutetime=mute_flag
             )
             new_items, updated_history = rss.get_new_feeders(
                 ai_key,
@@ -192,7 +222,6 @@ def main():
                         time.sleep(rnd)
 
                     sender = SocialSender(reader, logger)
-                    mute_flag = mute_checker.is_mute_time()
                     sender.send_to_telegram(item, mute_flag)
                     sender.send_to_bluesky(item, mute_flag)
                     sender.send_to_linkedin(item, mute_flag)

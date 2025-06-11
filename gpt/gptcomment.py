@@ -39,9 +39,9 @@ from openai import OpenAI
 
 # Ensure getmodel.py (with GPTModelSelector) is importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from getmodel import GPTModelSelector  # noqa: E402
+from get_ai_model import Model
 
-__version__ = "0.0.2"
+__version__ = "0.0.4"
 
 
 class ArticleCommentator:
@@ -90,8 +90,12 @@ class ArticleCommentator:
             self.model = model
             self.logger.info("Using user‑specified model: %s", self.model)
         else:
-            selector = GPTModelSelector(api_key=self.api_key, logger=self.logger)
-            self.model = selector.get_cheapest_gpt_model()
+            raw = Model.fetch_raw_models(logger)
+            models = Model.process_models(raw, logger)
+            cheapest_model = Model.find_cheapest_model(models, logger, filter_str="openai")
+            self.model = cheapest_model.id
+            gpt_in_price = cheapest_model.prompt_price
+            gpt_out_price = cheapest_model.completion_price
             self.logger.info("Auto‑selected cheapest GPT model: %s", self.model)
 
         # Initialize OpenAI client

@@ -57,7 +57,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger                
 from gpt.gptcomment import ArticleCommentator   
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 class RSSFeeders:
@@ -66,12 +66,22 @@ class RSSFeeders:
     Optionally generate an AI comment on each new item.
 
     Args:
-        feeds:           List of dicts, each with key 'rss' for the feed URL.
-        base_url:        Base URL for the feed (if needed).
-        previous:        Previously seen items (to avoid duplicates).
-        retention_days:  How many days to keep old entries in the previous list.
-        logger:          A configured Logger instance (injected).
-        user_agent:      HTTP User‑Agent header for fetching feeds.
+        feeds (List[Dict[str, Any]]): List of feed dicts, each with at least the key 'rss' for the feed URL.
+        previous (List[Dict[str, Any]]): List of previously seen items (to avoid duplicates).
+        retention_days (int): How many days to keep old entries in the previous list.
+        logger (logging.Logger): A configured Logger instance (injected).
+        base_url (Optional[str]): Base URL for the AI API (default: https://api.openai.com/v1).
+        user_agent (Optional[str]): HTTP User-Agent header for fetching feeds.
+        mutetime (Optional[bool]): If True, disables AI comment generation (default: False).
+
+    Attributes:
+        feeds (List[Dict[str, Any]]): The list of feeds to process.
+        previous (List[Dict[str, Any]]): The list of previously seen items.
+        retention_days (int): Retention period for old items.
+        logger (logging.Logger): Logger instance for debug/info output.
+        mutetime (bool): Whether to mute AI comment generation.
+        base_url (str): Base URL for the AI API.
+        user_agent (str): User-Agent string for HTTP requests.
     """
 
     DEFAULT_USER_AGENT = (
@@ -79,7 +89,6 @@ class RSSFeeders:
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/136.0.0.0 Safari/537.36 Edg/136.0.3240.92"
     )
-
     DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
     def __init__(
@@ -90,11 +99,25 @@ class RSSFeeders:
         logger: logging.Logger,
         base_url: Optional[str] = None,
         user_agent: Optional[str] = None,
+        mutetime: Optional[bool] = False
     ) -> None:
+        """
+        Initialize the RSSFeeders object.
+
+        Args:
+            feeds (List[Dict[str, Any]]): List of feed dicts, each with at least the key 'rss' for the feed URL.
+            previous (List[Dict[str, Any]]): List of previously seen items (to avoid duplicates).
+            retention_days (int): How many days to keep old entries in the previous list.
+            logger (logging.Logger): A configured Logger instance (injected).
+            base_url (Optional[str]): Base URL for the AI API (default: https://api.openai.com/v1).
+            user_agent (Optional[str]): HTTP User-Agent header for fetching feeds.
+            mutetime (Optional[bool]): If True, disables AI comment generation (default: False).
+        """
         self.feeds = feeds.copy()
         self.previous = previous.copy()
         self.retention_days = retention_days
         self.logger = logger
+        self.mutetime = mutetime  
         self.base_url = base_url or self.DEFAULT_BASE_URL
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
 
@@ -257,7 +280,7 @@ class RSSFeeders:
             out = {**fdict, **info}
 
             # Optionally generate AI comment
-            if fdict.get("ai") and ai_key and gptmodel:
+            if fdict.get("ai") and ai_key and gptmodel and not self.mutetime:
                 commentator = ArticleCommentator(
                     link=out["link"],
                     api_key=ai_key,
