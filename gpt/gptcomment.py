@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-article_commentator.py  (version 0.0.2)
+article_commentator.py  (version 0.0.5)
 
 Generate a colloquial summary and personal comment for an online article
 using OpenAI GPT models. If no model is supplied, selects the cheapest GPT
@@ -41,7 +41,7 @@ from openai import OpenAI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from get_ai_model import Model
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 
 class ArticleCommentator:
@@ -164,7 +164,8 @@ class ArticleCommentator:
             )
             content = response.choices[0].message.content.strip()
             self.logger.info("Received response of %d chars", len(content))
-            return content[: self.max_chars]
+            # return content[: self.max_chars]
+            return content
         except Exception as e:
             self.logger.error("OpenAI API error: %s", e)
             return ""

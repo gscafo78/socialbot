@@ -296,6 +296,7 @@ class RSSFeeders:
                 out["ai-comment"] = commentator.generate_comment()
 
             self.logger.info("Discovered new RSS item: %s", out["link"])
+            self.logger.info("Comment new RSS item: %s", out["ai-comment"])
             return out
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
