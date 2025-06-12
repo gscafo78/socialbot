@@ -219,7 +219,10 @@ class RSSFeeders:
         desc = self._html_to_markdown(desc)
         desc = html.unescape(desc)
 
-        title = html.unescape(entry.get("title", ""))
+        title = entry.get("title", "")
+        if isinstance(title, bytes):
+            title = title.decode("utf-8")
+        title = html.unescape(title)
 
         # Category/tags
         cats = None

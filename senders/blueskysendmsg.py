@@ -34,6 +34,7 @@ It also exposes a command‐line interface:
 """
 
 import argparse
+import html
 import json
 import logging
 import re
@@ -47,7 +48,7 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------------------------
 # Module version
 # ------------------------------------------------------------------------------
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -157,6 +158,17 @@ class BlueskyPoster:
                 card["title"] = og_title["content"]
             elif soup.title and soup.title.string:
                 card["title"] = soup.title.string
+
+            # Normalize HTML entities and encoding issues
+            if card["title"]:
+                # Decodifica eventuali entità HTML
+                card["title"] = html.unescape(card["title"])
+                # Prova a sistemare eventuali errori di doppia codifica
+                try:
+                    card["title"] = card["title"].encode("latin1").decode("utf-8")
+                except (UnicodeEncodeError, UnicodeDecodeError):
+                    pass
+
             # Truncate excessively long titles
             if len(card["title"]) > 250:
                 card["title"] = card["title"][:247] + "..."
