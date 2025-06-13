@@ -91,7 +91,7 @@ class SocialSender:
             telebot = TelegramBotPublisher(token, chat_id)
             # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
@@ -125,7 +125,7 @@ class SocialSender:
             
             # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
@@ -175,7 +175,7 @@ class SocialSender:
             )
             # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
