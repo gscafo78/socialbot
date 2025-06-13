@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
 """
-social_sender.py
+senders.py
 
 Utility for dispatching a single “feed” entry to Telegram, Bluesky, and LinkedIn
 bots configured in a JSON settings file.
 
 Usage examples:
   # Show version
-  python social_sender.py --version
+  python senders.py --version
 
   # Run with INFO-level logging (default)
-  python social_sender.py --config ./settings.json
+  python senders.py --config ./settings.json
 
   # Run with DEBUG-level logging
-  python social_sender.py --config ./settings.json --debug
+  python senders.py --config ./settings.json --debug
 """
 
-__version__ = "0.0.2"
+__version__ = "0.0.4"
 
 import argparse
 import logging
 import sys
 import os
+from urllib.parse import urlparse
 
+# Add parent directory to sys.path for local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.readjson import JSONReader
@@ -31,10 +33,19 @@ from senders.blueskysendmsg import BlueskyPoster
 from senders.linkedinpublisher import LinkedInPublisher
 
 # ------------------------------------------------------------------------------
-# Module‐level logging configuration
+# Module-level logging configuration
 # ------------------------------------------------------------------------------
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
+def is_valid_url(url):
+    """
+    Check if a string is a valid HTTP/HTTPS URL.
+    """
+    try:
+        result = urlparse(url)
+        return result.scheme in ("http", "https")
+    except Exception:
+        return False
 
 class SocialSender:
     """
@@ -78,7 +89,13 @@ class SocialSender:
             )
 
             telebot = TelegramBotPublisher(token, chat_id)
-            link_to_use = feed.get("short_link") or feed.get("link", "")
+            # Prefer short_link if valid, else fallback to link
+            if not is_valid_url(feed.get("short_link")):
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                link_to_use = feed.get("link", "")
+            else:
+                link_to_use = feed.get("short_link") or feed.get("link", "")
+
             msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
             self.logger.debug("Payload for Telegram: %s", msg.replace("\n", " | "))
             telebot.send_message(msg)
@@ -105,7 +122,14 @@ class SocialSender:
                 "Sending new feed to Bluesky bot '%s' → %s",
                 bot_name, feed.get("title", "")
             )
-            link_to_use = feed.get("short_link") or feed.get("link", "")
+            
+            # Prefer short_link if valid, else fallback to link
+            if not is_valid_url(feed.get("short_link")):
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                link_to_use = feed.get("link", "")
+            else:
+                link_to_use = feed.get("short_link") or feed.get("link", "")
+            
             self.logger.debug(
                 "BlueskyPoster init with handle=%s, service=%s", handle, service
             )
@@ -149,7 +173,13 @@ class SocialSender:
                 "Sending new feed to LinkedIn bot '%s' → %s",
                 bot_name, feed.get("title", "")
             )
-            link_to_use = feed.get("short_link") or feed.get("link", "")
+            # Prefer short_link if valid, else fallback to link
+            if not is_valid_url(feed.get("short_link")):
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                link_to_use = feed.get("link", "")
+            else:
+                link_to_use = feed.get("short_link") or feed.get("link", "")
+
             self.logger.debug(
                 "LinkedInPublisher init with urn=%s", urn
             )
@@ -171,20 +201,27 @@ class SocialSender:
             except Exception as exc:
                 self.logger.error("Error while posting to LinkedIn: %s", exc)
 
-
 def main():
     """
-    Command‑line interface for SocialSender.
+    Command-line interface for SocialSender.
 
     Examples:
       # Show version
-      python social_sender.py --version
+      python senders.py --version
 
       # Run with default INFO logging
-      python social_sender.py --config ./settings.json
+      python senders.py --config ./settings.json
 
       # Run with DEBUG logging enabled
-      python social_sender.py --config ./settings.json --debug
+      python senders.py --config ./settings.json --debug
+
+    Arguments:
+      -c, --config   Path to JSON settings file (required)
+      --debug        Enable DEBUG-level logging (default is INFO)
+      --version      Show program version and exit
+
+    The script will read the configuration, instantiate the SocialSender,
+    and send a test feed to all configured social platforms.
     """
     parser = argparse.ArgumentParser(
         description="Dispatch a single feed entry to Telegram, Bluesky & LinkedIn bots."
@@ -211,7 +248,9 @@ def main():
     # Configure root logger
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level, format=LOG_FORMAT)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("socialbot.senders")
+
+    logger.info("SocialSender version %s starting up...", __version__)
 
     # Instantiate JSONReader & SocialSender
     reader = JSONReader(args.config, create=True, logger=logger)
@@ -238,6 +277,7 @@ def main():
     logger.info("=== Sending to LinkedIn ===")
     sender.send_to_linkedin(test_feed)
 
+    logger.info("All messages dispatched. Exiting.")
 
 if __name__ == "__main__":
     main()

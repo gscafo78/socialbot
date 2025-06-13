@@ -36,7 +36,7 @@ from rssfeeders.rssfeeders import RSSFeeders
 from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 
-__version__ = "0.0.21"
+__version__ = "0.0.22"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
