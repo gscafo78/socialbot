@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-rss_feeders.py  (version 0.1.0)
+rss_feeders.py  (version 0.1.2)
 
 Fetch and process the latest items from one or more RSS feeds.  Optionally
 generate AI comments on new entries via AI GPT models.
@@ -57,7 +57,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger                
 from gpt.gptcomment import ArticleCommentator   
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 class RSSFeeders:
@@ -150,29 +150,28 @@ class RSSFeeders:
         match = re.search(r'<img[^>]+src="([^"]+)"', html_str)
         return match.group(1) if match else None
 
-    def _html_to_markdown(self, html_text: str) -> str:
+    def _html_to_markdown(self, html: str) -> str:
         """
-        Convert an HTML description to plaintext/markdown:
-          - Keep <p> paragraphs
-          - Convert <a href> to [text](url)
-          - Strip boilerplate lines like "L'articolo ... proviene da."
+        Remove all HTML tags and cut everything from 'Contenuto a pagamento' onwards.
+        Also remove newsletter promotional text if present.
+        Returns plain text only.
         """
-        soup = BeautifulSoup(html_text, "html.parser")
-        lines: List[str] = []
+        import re
 
-        for el in soup.find_all(["p", "a"]):
-            if el.name == "p":
-                txt = el.get_text(strip=True)
-                if not re.match(r"^L'articolo.*proviene da.*\.$", txt):
-                    if txt:
-                        lines.append(txt)
-            else:  # <a>
-                href = el.get("href", "").strip()
-                txt = el.get_text(strip=True)
-                if href and txt:
-                    lines.append(f"[{txt}]({href})")
+        # Remove all HTML tags
+        text = re.sub(r'<[^>]+>', '', html)
 
-        return "\n\n".join(lines) or soup.get_text(separator="\n", strip=True)
+        # Remove everything from 'Contenuto a pagamento' onwards
+        cut_index = text.find("Contenuto a pagamento")
+        if cut_index != -1:
+            text = text[:cut_index]
+
+        cut_index = text.find("\n")
+        if cut_index != -1:
+            text = text[:cut_index]
+
+        # Remove leading/trailing whitespace
+        return text.strip()
 
     def get_latest_rss(self, url: str) -> Optional[Dict[str, Any]]:
         """
