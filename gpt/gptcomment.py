@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-article_commentator.py  (version 0.0.5)
+article_commentator.py  (version 0.0.6)
 
 Generate a colloquial summary and personal comment for an online article
 using OpenAI GPT models. If no model is supplied, selects the cheapest GPT
@@ -41,7 +41,7 @@ from openai import OpenAI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from get_ai_model import Model
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 
 class ArticleCommentator:
@@ -143,15 +143,26 @@ class ArticleCommentator:
             raise ValueError("Language must be 'en' or 'it'")
 
         prompt = (
-            f"Read and summarize the following article in a colloquial, natural way "
-            f"in {lang_name}, then add a personal comment as if you had read it:\n\n"
+            f"Speak in a casual, natural, and spontaneous manner in {lang_name} about the following text, "
+            f"including a personal comment as if you had read it yourself:\n\n"
             f"{article_text}"
         )
+
         system_msg = (
-            f"You are an expert article commentator. Summarize and comment in a "
-            f"colloquial style without advertising. "
-            f"Reply in {lang_name}, max {self.max_chars} characters."
+            f"You are an expert commentator. Respond in a colloquial and natural style, without advertising or formalities. "
+            f"Reply in {lang_name}, with a maximum of {self.max_chars} characters."
         )
+
+        # prompt = (
+        #     f"Read and summarize the following article in a colloquial, natural way "
+        #     f"in {lang_name}, then add a personal comment as if you had read it:\n\n"
+        #     f"{article_text}"
+        # )
+        # system_msg = (
+        #     f"You are an expert article commentator. Summarize and comment in a "
+        #     f"colloquial style without advertising. "
+        #     f"Reply in {lang_name}, max {self.max_chars} characters."
+        # )
 
         self.logger.debug("Sending chat completion: model=%s, max_chars=%d", self.model, self.max_chars)
         try:
