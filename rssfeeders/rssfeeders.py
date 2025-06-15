@@ -150,7 +150,7 @@ class RSSFeeders:
         match = re.search(r'<img[^>]+src="([^"]+)"', html_str)
         return match.group(1) if match else None
 
-    def _html_to_markdown(self, html: str) -> str:
+    def _sanitize_description(self, html: str) -> str:
         """
         Remove all HTML tags and cut everything from 'Contenuto a pagamento' onwards.
         Also remove newsletter promotional text if present.
@@ -215,7 +215,7 @@ class RSSFeeders:
             return None
 
         desc = entry.get("description", "") or ""
-        desc = self._html_to_markdown(desc)
+        desc = self._sanitize_description(desc)
         desc = html.unescape(desc)
 
         title = entry.get("title", "")
