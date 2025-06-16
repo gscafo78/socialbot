@@ -215,11 +215,11 @@ def main():
 
                 # Dispatch each new item to SocialSender
                 for item in new_items:
-                    # small random back‑off to avoid spamming multiple bots simultaneously
-                    if sleep_time > 30:
-                        rnd = random.uniform(0, sleep_time - 30)
-                        logger.debug("Backing off %.1f seconds before sending next batch", rnd)
-                        time.sleep(rnd)
+                    # # small random back‑off to avoid spamming multiple bots simultaneously
+                    # if sleep_time > 30:
+                    #     rnd = random.uniform(0, sleep_time - 300)
+                    #     logger.debug("Backing off %.1f seconds before sending next batch", rnd)
+                    #     time.sleep(rnd)
 
                     sender = SocialSender(reader, logger)
                     sender.send_to_telegram(item, mute_flag)
