@@ -47,7 +47,7 @@ EXAMPLE FEED STRUCTURE:
 }
 """
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 import argparse
 import logging
@@ -124,9 +124,9 @@ class SocialSender:
             )
             telebot = TelegramBotPublisher(token, chat_id)
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
-                self.logger.error("Invalid URL: %s\nNew URL: %s", feed.get("short_link"), link_to_use)
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.info("New URL: %s", link_to_use)
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
             msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
@@ -159,8 +159,9 @@ class SocialSender:
                 bot_name, feed.get("title", "")
             )
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.info("New URL: %s", link_to_use)
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
             self.logger.debug(
@@ -207,8 +208,9 @@ class SocialSender:
                 bot_name, feed.get("title", "")
             )
             if not is_valid_url(feed.get("short_link")):
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                self.logger.info("New URL: %s", link_to_use)
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
             self.logger.debug(
