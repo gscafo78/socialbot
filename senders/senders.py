@@ -2,10 +2,10 @@
 """
 senders.py
 
-Utility for dispatching a single “feed” entry to Telegram, Bluesky, and LinkedIn
-bots configured in a JSON settings file.
+SocialSender: Utility for dispatching a single feed entry to Telegram, Bluesky, and LinkedIn
+using credentials and settings from a JSON configuration file.
 
-Usage examples:
+USAGE EXAMPLES:
   # Show version
   python senders.py --version
 
@@ -14,15 +14,49 @@ Usage examples:
 
   # Run with DEBUG-level logging
   python senders.py --config ./settings.json --debug
+
+DESCRIPTION:
+- Reads bot credentials and settings from a JSON config file (see --config).
+- Sends a sample feed (or your own) to all configured Telegram, Bluesky, and LinkedIn bots.
+- Uses logging for all output (INFO by default, DEBUG if --debug is passed).
+- Prints all responses and errors to the log.
+- Version is shown with --version.
+
+ARGUMENTS:
+  -c, --config   Path to JSON settings file (required)
+  --debug        Enable DEBUG-level logging (default is INFO)
+  --version      Show program version and exit
+
+EXAMPLE CONFIG STRUCTURE (settings.json):
+{
+  "telegram": {"bots": {"default": {"token": "...", "chat_id": "...", "mute": false}}},
+  "bluesky":  {"bots": {"default": {"handle": "...", "password": "...", "service": "...", "mute": false}}},
+  "linkedin": {"bots": {"default": {"urn": "...", "access_token": "...", "mute": false}}}
+}
+
+EXAMPLE FEED STRUCTURE:
+{
+  "title":      "Test Title",
+  "description": "Test Description",
+  "short_link":  "https://example.com/test",
+  "ai-comment":  "This is an AI-generated comment.",
+  "category":    ["news", "cyber security"],
+  "telegram": {"bots": ["default"]},
+  "bluesky":  {"bots": ["default"]},
+  "linkedin": {"bots": ["default"]}
+}
 """
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 import argparse
 import logging
 import sys
 import os
+import asyncio
+import random
 from urllib.parse import urlparse
+from functools import partial
 
 # Add parent directory to sys.path for local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,9 +66,6 @@ from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 from senders.linkedinpublisher import LinkedInPublisher
 
-# ------------------------------------------------------------------------------
-# Module-level logging configuration
-# ------------------------------------------------------------------------------
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 def is_valid_url(url):
@@ -46,6 +77,13 @@ def is_valid_url(url):
         return result.scheme in ("http", "https")
     except Exception:
         return False
+
+async def run_in_thread(func, *args, **kwargs):
+    """
+    Run a blocking function in a thread for async compatibility.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
 class SocialSender:
     """
@@ -60,26 +98,23 @@ class SocialSender:
         self.reader = reader
         self.logger = logger
 
-    def send_to_telegram(self, feed, ismute=False):
+    async def send_to_telegram(self, feed: dict, ismute: bool = False):
         """
-        Send a single feed to all configured Telegram bots.
+        Send a single feed to all configured Telegram bots asynchronously.
 
         Args:
             feed (dict): Feed entry with keys like 'title', 'description', 'short_link', etc.
             ismute (bool): If True, override individual bot mute flags (send anyway).
         """
         bots = feed.get("telegram", {}).get("bots", [])
+        tasks = []
         for bot_name in bots:
-            # Retrieve token/chat_id + mute flag from settings.json
             token, chat_id, _, mute = self.reader.get_social_values("telegram", bot_name)
-
-            # Skip if bot is muted (unless globally overridden via ismute)
             if mute and ismute:
                 self.logger.debug(
                     "Skipping Telegram message for '%s' due to mute setting.", feed.get("title", "")
                 )
                 continue
-
             self.logger.debug(
                 "Sending new feed to Telegram bot '%s' → %s",
                 bot_name, feed.get("title", "")
@@ -87,49 +122,46 @@ class SocialSender:
             self.logger.debug(
                 "TelegramBotPublisher initialized with token=%s, chat_id=%s", token, chat_id
             )
-
             telebot = TelegramBotPublisher(token, chat_id)
-            # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
-
             msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
             self.logger.debug("Payload for Telegram: %s", msg.replace("\n", " | "))
-            telebot.send_message(msg)
+            tasks.append(
+                run_in_thread(telebot.send_message, msg)
+            )
+        if tasks:
+            await asyncio.gather(*tasks)
 
-    def send_to_bluesky(self, feed, ismute=False):
+    async def send_to_bluesky(self, feed: dict, ismute: bool = False):
         """
-        Send a single feed to all configured Bluesky bots.
+        Send a single feed to all configured Bluesky bots asynchronously.
 
         Args:
             feed (dict): Feed entry with keys like 'title', 'description', 'short_link', etc.
             ismute (bool): If True, override individual bot mute flags (send anyway).
         """
         bots = feed.get("bluesky", {}).get("bots", [])
+        tasks = []
         for bot_name in bots:
             handle, password, service, mute = self.reader.get_social_values("bluesky", bot_name)
-
             if mute and ismute:
                 self.logger.debug(
                     "Skipping Bluesky message for '%s' due to mute setting.", feed.get("title", "")
                 )
                 continue
-
             self.logger.debug(
                 "Sending new feed to Bluesky bot '%s' → %s",
                 bot_name, feed.get("title", "")
             )
-            
-            # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
-            
             self.logger.debug(
                 "BlueskyPoster init with handle=%s, service=%s", handle, service
             )
@@ -137,49 +169,47 @@ class SocialSender:
                 "Payload: %s\n%s",
                 feed.get("title",""), feed.get("description","")
             )
-
             blueskybot = BlueskyPoster(handle, password, service)
-            try:
-                ai_comment = feed.get("ai-comment") or None
-                response = blueskybot.post_feed(
+            ai_comment = feed.get("ai-comment") or None
+            tasks.append(
+                run_in_thread(
+                    blueskybot.post_feed,
                     description=feed.get("description", ""),
                     link=link_to_use,
                     ai_comment=ai_comment,
                     title=feed.get("title", "")
                 )
-                self.logger.debug("Bluesky server response: %s", response)
-            except Exception as exc:
-                self.logger.error("Error while posting to Bluesky: %s", exc)
+            )
+        if tasks:
+            await asyncio.gather(*tasks)
 
-    def send_to_linkedin(self, feed, ismute=False):
+    async def send_to_linkedin(self, feed: dict, ismute: bool = False, sleep_time: int = 0):
         """
-        Send a single feed to all configured LinkedIn accounts.
+        Send a single feed to all configured LinkedIn accounts asynchronously.
 
         Args:
             feed (dict): Feed entry with keys like 'title', 'description', 'short_link', etc.
             ismute (bool): If True, override individual bot mute flags (send anyway).
+            sleep_time (int): Time to wait before sending next batch (to avoid spamming).
         """
         bots = feed.get("linkedin", {}).get("bots", [])
+        tasks = []
         for bot_name in bots:
             urn, access_token, _, mute = self.reader.get_social_values("linkedin", bot_name)
-
             if mute and ismute:
                 self.logger.debug(
                     "Skipping LinkedIn message for '%s' due to mute setting.", feed.get("title", "")
                 )
                 continue
-
             self.logger.debug(
                 "Sending new feed to LinkedIn bot '%s' → %s",
                 bot_name, feed.get("title", "")
             )
-            # Prefer short_link if valid, else fallback to link
             if not is_valid_url(feed.get("short_link")):
-                self.logger.debug("Invalid URL: %s", feed.get("short_link"))
+                self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
-
             self.logger.debug(
                 "LinkedInPublisher init with urn=%s", urn
             )
@@ -187,44 +217,41 @@ class SocialSender:
                 "Payload: %s\n%s",
                 feed.get("title",""), feed.get("description","")
             )
-
             linkedinbot = LinkedInPublisher(access_token, urn=urn, logger=self.logger)
-            try:
-                ai_comment = feed.get("ai-comment") or None
-                text_for_post = ai_comment or feed.get("description", "")
-                response = linkedinbot.post_link(
+            ai_comment = feed.get("ai-comment") or None
+            text_for_post = ai_comment or feed.get("description", "")
+            # Random back-off to avoid spamming multiple bots simultaneously
+            if sleep_time > 30:
+                rnd = random.uniform(0, sleep_time - (sleep_time / 2))
+                self.logger.debug("Backing off %.1f seconds before sending next batch", rnd)
+                await asyncio.sleep(rnd)
+            tasks.append(
+                run_in_thread(
+                    linkedinbot.post_link,
                     text=text_for_post,
                     link=link_to_use,
                     category=feed.get("category", []),
                 )
-                self.logger.debug("LinkedIn server response: %s", response)
-            except Exception as exc:
-                self.logger.error("Error while posting to LinkedIn: %s", exc)
+            )
+        if tasks:
+            await asyncio.gather(*tasks)
 
-def main():
+async def main():
     """
-    Command-line interface for SocialSender.
+    Command-line interface for SocialSender (async version).
 
-    Examples:
-      # Show version
-      python senders.py --version
+    - Reads configuration and credentials from a JSON file.
+    - Instantiates SocialSender and sends a test feed to all configured platforms asynchronously.
+    - Logging level is INFO by default, DEBUG if --debug is passed.
+    - Shows version with --version.
 
-      # Run with default INFO logging
+    Usage:
       python senders.py --config ./settings.json
-
-      # Run with DEBUG logging enabled
       python senders.py --config ./settings.json --debug
-
-    Arguments:
-      -c, --config   Path to JSON settings file (required)
-      --debug        Enable DEBUG-level logging (default is INFO)
-      --version      Show program version and exit
-
-    The script will read the configuration, instantiate the SocialSender,
-    and send a test feed to all configured social platforms.
+      python senders.py --version
     """
     parser = argparse.ArgumentParser(
-        description="Dispatch a single feed entry to Telegram, Bluesky & LinkedIn bots."
+        description="Dispatch a single feed entry to Telegram, Bluesky & LinkedIn bots (async)."
     )
     parser.add_argument(
         "--version",
@@ -269,15 +296,15 @@ def main():
     }
 
     logger.info("=== Sending to Telegram ===")
-    sender.send_to_telegram(test_feed)
+    await sender.send_to_telegram(test_feed)
 
     logger.info("=== Sending to Bluesky ===")
-    sender.send_to_bluesky(test_feed)
+    await sender.send_to_bluesky(test_feed)
 
     logger.info("=== Sending to LinkedIn ===")
-    sender.send_to_linkedin(test_feed)
+    await sender.send_to_linkedin(test_feed)
 
     logger.info("All messages dispatched. Exiting.")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

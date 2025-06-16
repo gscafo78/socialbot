@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
 socialbot.py
-
 Main runner for SocialBot:
-  - Periodically fetches RSS feeds  
-  - Generates AI comments   
-  - Dispatches new items to Telegram, Bluesky, and LinkedIn  
-  - Honors quiet/mute schedules  
-  - Schedules next run based on a cron expression  
-
+  - Periodically fetch RSS feeds  
+  - Generate AI comments   
+  - Dispatch new items to Telegram, Bluesky, and LinkedIn  
+  - Respect quiet/mute time windows  
+  - Schedule next run according to a cron expression  
 Usage:
     # Show version and exit
     python socialbot.py --version
-
     # Run with default INFO‑level logging
     python socialbot.py --config ./settings.json
-
     # Run with DEBUG‑level logging
     python socialbot.py --config ./settings.json --debug
 """
@@ -23,8 +19,8 @@ Usage:
 import argparse
 import json
 import logging
-import random
 import time
+import asyncio
 from datetime import datetime
 
 from croniter import croniter
@@ -32,11 +28,10 @@ from croniter import croniter
 from utils.readjson import JSONReader
 from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
-# from gpt.getmodel import GPTModelSelector
 from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 
-__version__ = "0.0.22"
+__version__ = "0.0.23"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -47,35 +42,38 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 def main():
     """
     Main entry point for SocialBot.
+      1. Parse command-line arguments and load configuration.
+      2. Configure logging and scheduling (cron).
+      3. Load RSS feeds and previously seen items.
+      4. Identify new feed items and (optionally) generate AI comments.
+      5. Dispatch new items to Telegram, Bluesky, and LinkedIn.
+      6. Respect mute/quiet time windows.
+      7. Sleep until the next scheduled execution.
 
-    - Parses command-line arguments and loads configuration files.
-    - Sets up logging and scheduling (cron).
-    - Loads RSS feeds and previously seen items.
-    - Detects new RSS items and (optionally) generates AI comments.
-    - Dispatches new items to Telegram, Bluesky, and LinkedIn via SocialSender.
-    - Honors mute/quiet time windows.
-    - Sleeps until the next scheduled run.
-
-    Args (from argparse and config):
-        --version              Show program version and exit.
-        -c, --config           Path to configuration file (default: ./settings.json).
-        --debug                Enable DEBUG-level logging (default is INFO).
+    Command-line arguments:
+      --version              Show program version and exit.
+      -c, --config           Path to configuration file (default: ./settings.json).
+      --debug                Enable DEBUG-level logging (default: INFO).
 
     Config file options (settings.json):
-        feeds_file             Path to feeds file (default: ./feeds.json).
-        log_file               Path to log/history file.
-        cron                   Cron expression for scheduling.
-        days_of_retention      How many days to keep old items.
-        mute.from              Start time for mute window (HH:MM).
-        mute.to                End time for mute window (HH:MM).
-        ai_comment_max_chars   Max chars for AI-generated comments.
-        ai_comment_language    Language for AI comments ("en", "it", ...).
-        ai_base_url            Base URL for AI API (default: https://api.openai.com/v1).
-        ai_model               GPT model to use (or "auto" for cheapest).
-        ai_key                 OpenAI API key.
+      settings:
+        feeds_file           Path to RSS feeds file (default: ./feeds.json).
+        log_file             Path to history/log file.
+        cron                 Cron expression for scheduling runs.
+        days_of_retention    Number of days to keep old items.
+        mute:
+          from               Mute window start time (HH:MM).
+          to                 Mute window end time (HH:MM).
+        log_level            Override log level for the runner.
+      ai:
+        ai_comment_max_chars Max characters for AI-generated comments.
+        ai_comment_language  Language code for AI comments ("en", "it", ...).
+        ai_base_url          Base URL for the AI API (default: https://api.openai.com/v1).
+        ai_model             GPT model to use (or "auto" for automatic selection).
+        ai_key               OpenAI API key.
 
     Returns:
-        None
+      None
     """
 
     # --- Parse command‐line arguments ------------------------------------------
@@ -169,81 +167,75 @@ def main():
 
     # --- Main fetch→post→sleep loop -------------------------------------------
     try:
-        # Initial dummy sleep_time (in seconds) before random backoff
         sleep_time = 40.0
 
-        while True:
-            # Load history of already‑processed items
-            history_reader = JSONReader(logfile, create=True, logger=logger)
-            seen_items = history_reader.get_data() or []
-            logger.debug("Loaded %d historical items from %s", len(seen_items), logfile)
+        async def _worker_loop():
+            nonlocal sleep_time
 
-            # Load configured RSS feeds
-            feeds_reader = JSONReader(feeds_path, logger=logger)
-            all_feeds = feeds_reader.get_data() or []
-            logger.debug("Configured RSS feeds: %s", all_feeds)
+            while True:
+                # Load history and feeds for this cycle
+                history_reader = JSONReader(logfile, create=True, logger=logger)
+                seen_items = history_reader.get_data() or []
+                feeds_reader = JSONReader(feeds_path, logger=logger)
+                all_feeds = feeds_reader.get_data() or []
+                # Ensure all feed entries have the necessary keys
+                for feed in all_feeds:
+                    feed.setdefault("link", "")
+                    feed.setdefault("datetime", "")
+                    feed.setdefault("description", "")
+                    feed.setdefault("title", "")
+                    feed.setdefault("ai-comment", "")
+                # Check if we are currently within the mute window
+                mute_flag = mute_checker.is_mute_time()
+                rss = RSSFeeders(
+                    all_feeds,
+                    seen_items,
+                    retention_days=retention_days,
+                    base_url=ai_base_url,
+                    logger=logger,
+                    mutetime=mute_flag
+                )
+                new_items, updated_history = rss.get_new_feeders(
+                    ai_key,
+                    gpt_model,
+                    ai_max_chars,
+                    ai_lang
+                )
 
-            # Ensure feeds have all required keys
-            for feed in all_feeds:
-                feed.setdefault("link", "")
-                feed.setdefault("datetime", "")
-                feed.setdefault("description", "")
-                feed.setdefault("title", "")
-                feed.setdefault("ai-comment", "")
+                if new_items:
+                    logger.info("Found %d new items – launching asynchronous dispatch…", len(new_items))
 
-            mute_flag = mute_checker.is_mute_time()
-            # Detect new items & generate AI comments
-            rss = RSSFeeders(
-                all_feeds,
-                seen_items,
-                retention_days=retention_days,
-                base_url=ai_base_url,
-                logger=logger,
-                mutetime=mute_flag
-            )
-            new_items, updated_history = rss.get_new_feeders(
-                ai_key,
-                gpt_model,
-                ai_max_chars,
-                ai_lang
-            )
+                    async def _process_item(item):
+                        sender = SocialSender(reader, logger)
+                        # send in parallel to all configured channels
+                        await asyncio.gather(
+                            sender.send_to_telegram(item, mute_flag),
+                            sender.send_to_bluesky(item, mute_flag),
+                            sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
+                        )
 
-            if new_items:
-                logger.debug("Found %d new items. Details:\n%s",
-                             len(new_items),
-                             json.dumps(new_items, indent=2, ensure_ascii=False, default=str))
+                    # create concurrent tasks for each new item
+                    tasks = [asyncio.create_task(_process_item(it)) for it in new_items]
+                    await asyncio.gather(*tasks)
 
-                # Dispatch each new item to SocialSender
-                for item in new_items:
-                    # # small random back‑off to avoid spamming multiple bots simultaneously
-                    # if sleep_time > 30:
-                    #     rnd = random.uniform(0, sleep_time - 300)
-                    #     logger.debug("Backing off %.1f seconds before sending next batch", rnd)
-                    #     time.sleep(rnd)
+                    # save updated history
+                    history_reader.set_data(updated_history)
+                    logger.debug("Updated history written to %s", logfile)
+                else:
+                    logger.info("No new RSS items found this cycle.")
 
-                    sender = SocialSender(reader, logger)
-                    sender.send_to_telegram(item, mute_flag)
-                    sender.send_to_bluesky(item, mute_flag)
-                    sender.send_to_linkedin(item, mute_flag)
+                # compute next run time using cron schedule
+                cron_iter = croniter(cron_expr, datetime.now())
+                next_run = cron_iter.get_next(datetime)
+                sleep_time = (next_run - datetime.now()).total_seconds()
+                if sleep_time < 0:
+                    logger.warning("Negative sleep_time (%.1f); resetting to zero", sleep_time)
+                    sleep_time = 0.0
+                logger.info("Sleeping %d minutes until the next cycle…", int(sleep_time / 60))
+                await asyncio.sleep(sleep_time)
 
-                # Persist updated history
-                history_reader.set_data(updated_history)
-                logger.debug("Updated history written to %s", logfile)
-
-            else:
-                logger.info("No new RSS items found at this cycle.")
-
-            # Compute next wake‑up time via croniter
-            cron_iter = croniter(cron_expr, datetime.now())
-            next_run = cron_iter.get_next(datetime)
-            sleep_time = (next_run - datetime.now()).total_seconds()
-            if sleep_time < 0:
-                logger.warning("Next sleep_time was negative (%.1f), resetting to 0", sleep_time)
-                sleep_time = 0.0
-
-            logger.info("Sleeping %d minutes until next run …", int(sleep_time / 60))
-            time.sleep(sleep_time)
-
+        # lancio l'event loop
+        asyncio.run(_worker_loop())
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received – shutting down SocialBot.")
 
