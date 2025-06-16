@@ -47,7 +47,7 @@ EXAMPLE FEED STRUCTURE:
 }
 """
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 import argparse
 import logging
@@ -126,6 +126,7 @@ class SocialSender:
             if not is_valid_url(feed.get("short_link")):
                 self.logger.error("Invalid URL: %s", feed.get("short_link"))
                 link_to_use = feed.get("link", "")
+                self.logger.error("Invalid URL: %s\nNew URL: %s", feed.get("short_link"), link_to_use)
             else:
                 link_to_use = feed.get("short_link") or feed.get("link", "")
             msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
