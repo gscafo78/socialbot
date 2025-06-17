@@ -46,6 +46,135 @@ EXAMPLE FEED STRUCTURE:
   "linkedin": {"bots": ["default"]}
 }
 """
+"""
+[
+    {
+        "telegram": [
+            {
+                "name": "gs_cyberbot",
+                "token": "7978695717:AAE3NS-QjpqZYX_dihbfwS7XA2IQo2QdH7c",
+                "chat_id": "-1002663511141"
+            },
+            {
+                "name": "gs_financebot",
+                "token": "7732151977:AAH4Bkw68PGsxQNhkaMKXIBOGHAIoUSHlTY",
+                "chat_id": "-1002541911908"
+            },
+            {
+                "name": "gs_newsbot",
+                "token": "7538733048:AAHKkiRQ9-zEMSZAiy1cbrahQpToFP7QwD4",
+                "chat_id": "-1002554531164"
+            }
+        ]
+    },
+    {
+        "bluesky": [
+            {
+                "name": "gscafo78",
+                "handle": "gscafo78.bluesky.myhomecloud.it",
+                "password": "Can8d1g0mm4!",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": true
+            },
+            {
+                "name": "gscafo",
+                "handle": "gscafo.bsky.social",
+                "password": "Can8d1g0mm4!",
+                "service": "https://bsky.social",
+                "mute": true
+            },
+            {
+                "name": "affaritaliani",
+                "handle": "gs-affaritaliani.bsky.social",
+                "password": "Can8d1g0mm4!",
+                "service": "https://bsky.social",
+                "mute": false
+            },
+            {
+                "name": "ilgiornale",
+                "handle": "gs-ilgiornale-bot.bsky.social",
+                "password": "Can8d1g0mm4!",
+                "service": "https://bsky.social",
+                "mute": false
+            },
+            {
+                "name": "formiche",
+                "handle": "gs-formiche-bot.bluesky.myhomecloud.it",
+                "password": "yfNwknfaJhyAO8DPH8L9p7tb",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "ansa",
+                "handle": "gs-ansa-bot.bluesky.myhomecloud.it",
+                "password": "3wxDrE9lvpBAzK2iDmtPpdKv",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "lastampa",
+                "handle": "gs-lastampa-bot.bluesky.myhomecloud.it",
+                "password": "SAgUJdv2rIZeJVYPpDcIRXi9",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "repubblica",
+                "handle": "gs-repubblica-bot.bluesky.myhomecloud.it",
+                "password": "oc5RMuFWQsIq6kC6P3xX5DAs",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "gazzetta",
+                "handle": "gs-gazzetta-bot.bluesky.myhomecloud.it",
+                "password": "ejrpbnivtMDfRzamgnrangwy",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "ilsole24ore",
+                "handle": "gs-ilsole24ore-bot.bluesky.myhomecloud.it",
+                "password": "H7eX9TcpMwvZVaMIUsQ58CEC",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "corrieredellosport",
+                "handle": "gs-corrieresport.bluesky.myhomecloud.it",
+                "password": "YJHP6lZOwCSxrsAT3syHSMTl",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "corriere",
+                "handle": "gs-corrieresera.bluesky.myhomecloud.it",
+                "password": "0worN2ejoxi3tiHl56iv92lJ",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            },
+            {
+                "name": "ilfoglio",
+                "handle": "gs-ilfoglio-bot.bluesky.myhomecloud.it",
+                "password": "qs7TSiDtH0EE6j5dL1Wy8Gxs",
+                "service": "https://bluesky.myhomecloud.it",
+                "mute": false
+            }
+        ]
+    },
+    {
+        "linkedin": [
+            {
+                "name": "gscafo78",
+                "urn": "1z-ly-tSO_",
+                "access_token": "AQXFrh5ETcBAAglxkHfE7CwUPTDbyZOuksuLFIQ2Zj1bJrSABGbUxdRKqIqxgtTBfImHsLNxTbplf1T_-WboO_Sm6_hkDdOLWevlGL4KuXyHHZEXCVyBNMS0Adb_OL4uXV8Wjh25u3lfmE64hiEfYtIH4zLFxF31cWtrAcYCcRDZ5zndz1699JlmRbypDRhNRVUX8ITF56dFFv6j-5KzX3PZKS690HgWnQuXIAKLAXoDIlg6eahr4P4z-gejlkylXGD19cWbBAtMB9EozFUmjOOL1oErDsdbHMZDoYEklBdE0tYDTh7IxiITbES-WKqJZ2z3VPtNtCw89WHzpV__qIlGzGhUDA",
+                "mute": true
+            }
+        ]
+    }
+]
+"""
+
 
 __version__ = "0.0.7"
 
@@ -57,16 +186,19 @@ import asyncio
 import random
 from urllib.parse import urlparse
 from functools import partial
+from typing import Any, Dict, List, Optional
 
 # Add parent directory to sys.path for local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.readjson import JSONReader
+# from utils.readjson import JSONReader
 from senders.telegramsendmsg import TelegramBotPublisher
 from senders.blueskysendmsg import BlueskyPoster
 from senders.linkedinpublisher import LinkedInPublisher
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+ConfigList = List[Dict[str, List[Dict[str, Any]]]]
 
 def is_valid_url(url):
     """
@@ -77,6 +209,19 @@ def is_valid_url(url):
         return result.scheme in ("http", "https")
     except Exception:
         return False
+
+def find_bot(config: ConfigList, service: str, name: str) -> Optional[Dict[str, Any]]:
+    """
+    Ritorna il dizionario del bot di tipo `service` e di nome `name`.
+    Se non trova corrispondenza, ritorna None.
+    """
+    for section in config:
+        # se nella sezione c'è la chiave service (es. "telegram", "bluesky", "linkedin")
+        if service in section:
+            for bot in section[service]:
+                if bot.get("name") == name:
+                    return bot
+    return None
 
 async def run_in_thread(func, *args, **kwargs):
     """
@@ -90,12 +235,12 @@ class SocialSender:
     Coordinates sending a single feed entry to all configured social bots.
 
     Args:
-        reader (JSONReader): JSONReader instance for reading bot credentials.
+        accouts : A Dictionary with bot credentials.
         logger (logging.Logger): Logger for output (INFO/DEBUG/etc).
     """
 
-    def __init__(self, reader, logger):
-        self.reader = reader
+    def __init__(self, accounts, logger):
+        self.accounts = accounts
         self.logger = logger
 
     async def send_to_telegram(self, feed: dict, ismute: bool = False):
@@ -107,36 +252,42 @@ class SocialSender:
             ismute (bool): If True, override individual bot mute flags (send anyway).
         """
         bots = feed.get("telegram", {}).get("bots", [])
-        tasks = []
-        for bot_name in bots:
-            # da modificare per leggere i valori di telegram
-            token, chat_id, _, mute = self.reader.get_social_values("telegram", bot_name)
-            if mute and ismute:
+        if len(bots) > 0:
+            self.logger.debug("Telegram bots to send to: %s", bots)
+            tasks = []
+            for bot_name in bots:
+                # da modificare per leggere i valori di telegram
+                telegramaccount = find_bot(self.accounts, "telegram", bot_name)
+                token = telegramaccount.get("token", "")
+                chat_id = telegramaccount.get("chat_id", "")
+                mute = telegramaccount.get("mute", False)
+                # token, chat_id, _, mute = self.reader.get_social_values("telegram", bot_name)
+                if mute and ismute:
+                    self.logger.debug(
+                        "Skipping Telegram message for '%s' due to mute setting.", feed.get("title", "")
+                    )
+                    continue
                 self.logger.debug(
-                    "Skipping Telegram message for '%s' due to mute setting.", feed.get("title", "")
+                    "Sending new feed to Telegram bot '%s' → %s",
+                    bot_name, feed.get("title", "")
                 )
-                continue
-            self.logger.debug(
-                "Sending new feed to Telegram bot '%s' → %s",
-                bot_name, feed.get("title", "")
-            )
-            self.logger.debug(
-                "TelegramBotPublisher initialized with token=%s, chat_id=%s", token, chat_id
-            )
-            telebot = TelegramBotPublisher(token, chat_id)
-            if not is_valid_url(feed.get("short_link")):
-                link_to_use = feed.get("link", "")
-                self.logger.error("Invalid URL: %s", feed.get("short_link"))
-                self.logger.info("New URL: %s", link_to_use)
-            else:
-                link_to_use = feed.get("short_link") or feed.get("link", "")
-            msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
-            self.logger.debug("Payload for Telegram: %s", msg.replace("\n", " | "))
-            tasks.append(
-                run_in_thread(telebot.send_message, msg)
-            )
-        if tasks:
-            await asyncio.gather(*tasks)
+                self.logger.debug(
+                    "TelegramBotPublisher initialized with token=%s, chat_id=%s", token, chat_id
+                )
+                telebot = TelegramBotPublisher(token, chat_id)
+                if not is_valid_url(feed.get("short_link")):
+                    link_to_use = feed.get("link", "")
+                    self.logger.error("Invalid URL: %s", feed.get("short_link"))
+                    self.logger.info("New URL: %s", link_to_use)
+                else:
+                    link_to_use = feed.get("short_link") or feed.get("link", "")
+                msg = f"{feed.get('title','')}\n{feed.get('description','')}\n{link_to_use}"
+                self.logger.debug("Payload for Telegram: %s", msg.replace("\n", " | "))
+                tasks.append(
+                    run_in_thread(telebot.send_message, msg)
+                )
+            if tasks:
+                await asyncio.gather(*tasks)
 
     async def send_to_bluesky(self, feed: dict, ismute: bool = False):
         """
@@ -150,7 +301,12 @@ class SocialSender:
         tasks = []
         for bot_name in bots:
             # Da modificare per leggere i valori di bluesky
-            handle, password, service, mute = self.reader.get_social_values("bluesky", bot_name)
+            bsaccount = find_bot(self.accounts, "bluesky", bot_name)
+            handle = bsaccount.get("handle", "")
+            password = bsaccount.get("password", "")
+            service = bsaccount.get("service", "")
+            mute = bsaccount.get("mute", False)
+            # handle, password, service, mute = self.reader.get_social_values("bluesky", bot_name)
             if mute and ismute:
                 self.logger.debug(
                     "Skipping Bluesky message for '%s' due to mute setting.", feed.get("title", "")
@@ -199,9 +355,14 @@ class SocialSender:
         bots = feed.get("linkedin", {}).get("bots", [])
         tasks = []
         for bot_name in bots:
-            
+
+            linkedinaccount = find_bot(self.accounts, "linkedin", bot_name)
+            urn = linkedinaccount.get("urn", "")
+            access_token = linkedinaccount.get("access_token", "")
+            mute = linkedinaccount.get("mute", False)
+
             # Da modificare per leggere i valori di linkedin
-            urn, access_token, _, mute = self.reader.get_social_values("linkedin", bot_name)
+            # urn, access_token, _, mute = self.reader.get_social_values("linkedin", bot_name)
             
             if mute and ismute:
                 self.logger.debug(
@@ -288,8 +449,8 @@ async def main():
     logger.info("SocialSender version %s starting up...", __version__)
 
     # Instantiate JSONReader & SocialSender
-    reader = JSONReader(args.config, create=True, logger=logger)
-    sender = SocialSender(reader, logger)
+    # reader = JSONReader(args.config, create=True, logger=logger)
+    # sender = SocialSender(reader, logger)
 
     # Example feed for testing – replace or extend as needed
     test_feed = {
@@ -303,16 +464,16 @@ async def main():
         "linkedin": {"bots": ["default"]},
     }
 
-    logger.info("=== Sending to Telegram ===")
-    await sender.send_to_telegram(test_feed)
+    # logger.info("=== Sending to Telegram ===")
+    # await sender.send_to_telegram(test_feed)
 
-    logger.info("=== Sending to Bluesky ===")
-    await sender.send_to_bluesky(test_feed)
+    # logger.info("=== Sending to Bluesky ===")
+    # await sender.send_to_bluesky(test_feed)
 
-    logger.info("=== Sending to LinkedIn ===")
-    await sender.send_to_linkedin(test_feed)
+    # logger.info("=== Sending to LinkedIn ===")
+    # await sender.send_to_linkedin(test_feed)
 
-    logger.info("All messages dispatched. Exiting.")
+    # logger.info("All messages dispatched. Exiting.")
 
 if __name__ == "__main__":
     asyncio.run(main())

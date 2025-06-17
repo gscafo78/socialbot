@@ -244,20 +244,27 @@ def main():
 
                     async def _process_item(item):
                         sender = SocialSender(db.export_accounts_cleartext(), logger)
-                        # send in parallel to all configured channels
+                        # Send in parallel to all configured channels
                         await asyncio.gather(
                             sender.send_to_telegram(item, mute_flag),
-                            sender.send_to_bluesky(item, mute_flag),
-                            sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
+                            # sender.send_to_bluesky(item, mute_flag),
+                            # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time)
                         )
+                        # Insert execution log
+                        result = db.insert_execution_log_from_json(item)
+                        if result is not None:
+                            inserted, skipped = result
+                            logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
+                        else:
+                            logger.warning("Execution log insertion returned None for item: %s", item.get("title", ""))
 
                     # create concurrent tasks for each new item
                     tasks = [asyncio.create_task(_process_item(it)) for it in new_items]
                     await asyncio.gather(*tasks)
 
                     # save updated history
-                    inserted, skipped = db.insert_execution_log_from_json(new_items)
-                    logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
+                    # inserted, skipped = db.insert_execution_log_from_json(new_items)
+                    # logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
                     # history_reader.set_data(updated_history)
                     # logger.debug("Updated history written to %s", logfile)
                 else:
