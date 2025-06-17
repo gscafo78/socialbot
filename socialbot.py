@@ -19,7 +19,7 @@ Usage:
 import argparse
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from croniter import croniter
 
@@ -30,7 +30,7 @@ from gpt.get_ai_model import Model
 from senders.senders import SocialSender
 from utils.dbmanager import DatabaseManager
 
-__version__ = "0.0.25"
+__version__ = "0.0.26"
 
 # ------------------------------------------------------------------------------
 # Module‐level logging configuration
@@ -121,7 +121,8 @@ def main():
     secret_key = reader.get_value("settings", {}).get("secret-key", "")
     if not secret_key:
         logger.warning("No secret key provided in config – using empty string.")
-        
+
+    days_of_news = reader.get_value("settings", {}).get("days_of_news", None)   
     retention_days = reader.get_value("settings", {}).get("days_of_retention", None)
     cron_expr = reader.get_value("settings", {}).get("cron", "0 * * * *")
     mute_from = reader.get_value("settings", {}).get("mute", {}).get("from", "00:00")
@@ -162,11 +163,11 @@ def main():
         gpt_in_price = 0
         gpt_out_price = 0
 
-    feeds_path = reader.get_value(
-        "settings", {}
-    ).get("feeds_file", "/opt/github/03_Script/Python/socialbot/feeds.json")
+    # feeds_path = reader.get_value(
+    #     "settings", {}
+    # ).get("feeds_file", "/opt/github/03_Script/Python/socialbot/feeds.json")
   
-    logfile = reader.get_value("settings", {}).get("log_file", "/var/log/socialbot.log")
+    # logfile = reader.get_value("settings", {}).get("log_file", "/var/log/socialbot.log")
     
 
 
@@ -181,7 +182,8 @@ def main():
         "Mute window from %s to %s → is_mute_time=%s",
         mute_from, mute_to, mute_checker.is_mute_time()
     )
-    logger.info("Retention days: %s", retention_days)
+    logger.info("Retention days of news: %s", days_of_news)
+    logger.info("Retention days of logs: %s", retention_days)
     logger.info("AI Base Url: %s", ai_base_url)
     logger.info(
         "AI model: %s - $%.2f/M input tokens | $%.2f/M output tokens",
@@ -200,15 +202,21 @@ def main():
             nonlocal sleep_time
 
             while True:
+                
                 # Load history and feeds for this cycle
-                history_reader = JSONReader(logfile, create=True, logger=logger)
-                seen_items_old = history_reader.get_data() or []
-                seen_items = db.export_execution_logs()
-                feeds_reader = JSONReader(feeds_path, logger=logger)
-                all_feeds_old = feeds_reader.get_data() or []
-                all_feeds = db.generate_feed_list()
+                # history_reader = JSONReader(logfile, create=True, logger=logger)
+                # seen_items_old = history_reader.get_data() or []
+                retdays = (datetime.now() - timedelta(days=retention_days)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+                db.delete_old_execution_logs(retdays)
+                logger.debug("News removed until %s", retdays)
+                retnews = (datetime.now() - timedelta(days=days_of_news)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+                logger.debug("Load news from %s", retnews)
+                seen_items = db.export_execution_logs(retnews)
+                # feeds_reader = JSONReader(feeds_path, logger=logger)
+                # all_feeds_old = feeds_reader.get_data() or []
+                feeds_list = db.generate_feed_list()
                 # Ensure all feed entries have the necessary keys
-                for feed in all_feeds:
+                for feed in feeds_list:
                     feed.setdefault("link", "")
                     feed.setdefault("datetime", "")
                     feed.setdefault("description", "")
@@ -217,14 +225,14 @@ def main():
                 # Check if we are currently within the mute window
                 mute_flag = mute_checker.is_mute_time()
                 rss = RSSFeeders(
-                    all_feeds,
+                    feeds_list,
                     seen_items,
                     retention_days=retention_days,
                     base_url=ai_base_url,
                     logger=logger,
                     mutetime=mute_flag
                 )
-                new_items, updated_history = rss.get_new_feeders(
+                new_items, _ = rss.get_new_feeders(
                     ai_key,
                     gpt_model,
                     ai_max_chars,
@@ -239,8 +247,8 @@ def main():
                         # send in parallel to all configured channels
                         await asyncio.gather(
                             sender.send_to_telegram(item, mute_flag),
-                            # sender.send_to_bluesky(item, mute_flag),
-                            # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
+                            sender.send_to_bluesky(item, mute_flag),
+                            sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
                         )
 
                     # create concurrent tasks for each new item
@@ -250,8 +258,8 @@ def main():
                     # save updated history
                     inserted, skipped = db.insert_execution_log_from_json(new_items)
                     logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
-                    history_reader.set_data(updated_history)
-                    logger.debug("Updated history written to %s", logfile)
+                    # history_reader.set_data(updated_history)
+                    # logger.debug("Updated history written to %s", logfile)
                 else:
                     logger.info("No new RSS items found this cycle.")
 
@@ -265,11 +273,15 @@ def main():
                 logger.info("Sleeping %d minutes until the next cycle…", int(sleep_time / 60))
                 await asyncio.sleep(sleep_time)
 
-        # lancio l'event loop
+        # Start the event loop
         asyncio.run(_worker_loop())
     except KeyboardInterrupt:
-        db.close()
         logger.info("KeyboardInterrupt received – shutting down SocialBot.")
+    except Exception as exc:
+        logger.exception("Fatal error: %s", exc)
+    finally:
+        db.close()
+        logger.info("SocialBot stopped. Database connection closed.")
 
 
 if __name__ == "__main__":

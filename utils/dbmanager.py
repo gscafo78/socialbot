@@ -549,16 +549,28 @@ class DatabaseManager:
             })
         return result
 
-    def export_execution_logs(self):
+    def export_execution_logs(self, from_date=None):
         """
         Extract all records from execution_logs and return as a list of dict/json.
+        If from_date is provided (string 'YYYY-MM-DD HH:MM:SS' or datetime), only logs from that date onward are returned.
         """
-        self.cur.execute("""
+        params = []
+        query = """
             SELECT l.id, f.rss, l.link, l.datetime, l.description, l.title, l.ai_comment, l.category, l.short_link, l.img_link
             FROM execution_logs l
             JOIN feeds f ON l.feed_id = f.id
-            ORDER BY l.datetime DESC
-        """)
+        """
+        if from_date:
+            if isinstance(from_date, str):
+                try:
+                    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    self.logger.error("from_date must be a datetime object or a string in 'YYYY-MM-DD HH:MM:SS' format.")
+                    return []
+            query += " WHERE l.datetime >= %s"
+            params.append(from_date.strftime("%Y-%m-%d %H:%M:%S"))
+        query += " ORDER BY l.datetime DESC"
+        self.cur.execute(query, params)
         logs = []
         for row in self.cur.fetchall():
             logs.append({
@@ -679,7 +691,9 @@ def parse_args():
     sub.add_parser("export-accounts", help="export all accounts in cleartext as JSON")
     sub.add_parser("export-ai", help="export AI configuration in cleartext as JSON")
     sub.add_parser("insert-execution-log", help="insert record(s) into execution_logs from a JSON file")
-    sub.add_parser("export-execution-logs", help="export all execution logs as JSON")
+    # sub.add_parser("export-execution-logs", help="export all execution logs as JSON")
+    export_logs_parser = sub.add_parser("export-execution-logs", help="export all execution logs as JSON")
+    export_logs_parser.add_argument("--from-date", help="Export logs from this date (format: 'YYYY-MM-DD HH:MM:SS')")
     # Add new subcommand for deleting old execution logs
     delete_parser = sub.add_parser(
         "delete-old-execution-logs",
@@ -752,6 +766,9 @@ def main():
     elif args.command == "delete-old-execution-logs":
         deleted = db.delete_old_execution_logs(args.before)
         print(f"[OK] Deleted {deleted} execution_logs rows older than {args.before}.")
+    elif args.command == "export-execution-logs":
+        logs = db.export_execution_logs(getattr(args, "from_date", None))
+        print(json.dumps(logs, indent=4, ensure_ascii=False))
     else:
         print(f"[ERROR] Unknown command: {args.command}")
         sys.exit(1)
