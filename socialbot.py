@@ -28,6 +28,7 @@ from utils.utils import MuteTimeChecker
 from rssfeeders.rssfeeders import RSSFeeders
 from gpt.get_ai_model import Model
 from senders.senders import SocialSender
+from utils.dbmanager import DatabaseManager
 
 __version__ = "0.0.25"
 
@@ -111,22 +112,41 @@ def main():
     reader = JSONReader(args.config_path, logger=logger)
 
     # --- Read important settings from config ----------------------------------
-    feeds_path = reader.get_value(
-        "settings", {}
-    ).get("feeds_file", "/opt/github/03_Script/Python/socialbot/feeds.json")
-    logfile = reader.get_value("settings", {}).get("log_file", "/var/log/socialbot.log")
-    cron_expr = reader.get_value("settings", {}).get("cron", "0 * * * *")
+    
+    host = reader.get_value("settings", {}).get("host", "127.0.0.1")
+    port = reader.get_value("settings", {}).get("port", 3306)
+    user = reader.get_value("settings", {}).get("user", "username")
+    pwd = reader.get_value("settings", {}).get("password", "")
+    database = reader.get_value("settings", {}).get("database", "db")
+    secret_key = reader.get_value("settings", {}).get("secret-key", "")
+    if not secret_key:
+        logger.warning("No secret key provided in config – using empty string.")
+        
     retention_days = reader.get_value("settings", {}).get("days_of_retention", None)
-
-    ai_max_chars = reader.get_value("ai", {}).get("ai_comment_max_chars", 160)
-    ai_lang = reader.get_value("ai", {}).get("ai_comment_language", "en")
-    ai_base_url = reader.get_value("ai", {}).get("ai_base_url", "https://api.openai.com/v1")
-    gpt_model = reader.get_value("ai", {}).get("ai_model", "gpt-4.1-nano")
-    ai_key = reader.get_value("ai", {}).get("ai_key", None)
-
+    cron_expr = reader.get_value("settings", {}).get("cron", "0 * * * *")
     mute_from = reader.get_value("settings", {}).get("mute", {}).get("from", "00:00")
     mute_to = reader.get_value("settings", {}).get("mute", {}).get("to", "00:00")
     mute_checker = MuteTimeChecker(mute_from, mute_to, logger=logger)
+    
+
+    db = DatabaseManager(
+        host=host,
+        port=port,
+        user=user,
+        password=pwd,
+        database=database,
+        secret_key=secret_key,
+        logger=logger
+    )
+    db.connect()
+    ai_config = db.export_ai_config_cleartext()
+    logger.info(f"AI config: {ai_config}")
+    ai_max_chars = ai_config[0]["ai_comment_max_chars"]
+    ai_lang = ai_config[0]["ai_comment_language"]
+    ai_base_url = ai_config[0]["ai_base_url"]
+    gpt_model = ai_config[0]["ai_model"]
+    ai_key = ai_config[0]["ai_key"]
+
 
     # --- Auto‑select GPT model if requested -----------------------------------
     if gpt_model == "auto":
@@ -142,11 +162,20 @@ def main():
         gpt_in_price = 0
         gpt_out_price = 0
 
+    feeds_path = reader.get_value(
+        "settings", {}
+    ).get("feeds_file", "/opt/github/03_Script/Python/socialbot/feeds.json")
+  
+    logfile = reader.get_value("settings", {}).get("log_file", "/var/log/socialbot.log")
+    
+
+
+
     # --- Startup logging -------------------------------------------------------
     logger.info("Starting SocialBot – version %s", __version__)
     logger.debug("Config file path: %s", args.config_path)
-    logger.info("Feeds file path: %s", feeds_path)
-    logger.info("Log file (history) path: %s", logfile)
+    # logger.info("Feeds file path: %s", feeds_path)
+    # logger.info("Log file (history) path: %s", logfile)
     logger.info("Cron schedule for updates: %s", cron_expr)
     logger.info(
         "Mute window from %s to %s → is_mute_time=%s",
@@ -173,9 +202,11 @@ def main():
             while True:
                 # Load history and feeds for this cycle
                 history_reader = JSONReader(logfile, create=True, logger=logger)
-                seen_items = history_reader.get_data() or []
+                seen_items_old = history_reader.get_data() or []
+                seen_items = db.export_execution_logs()
                 feeds_reader = JSONReader(feeds_path, logger=logger)
-                all_feeds = feeds_reader.get_data() or []
+                all_feeds_old = feeds_reader.get_data() or []
+                all_feeds = db.generate_feed_list()
                 # Ensure all feed entries have the necessary keys
                 for feed in all_feeds:
                     feed.setdefault("link", "")
@@ -208,8 +239,8 @@ def main():
                         # send in parallel to all configured channels
                         await asyncio.gather(
                             sender.send_to_telegram(item, mute_flag),
-                            sender.send_to_bluesky(item, mute_flag),
-                            sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
+                            # sender.send_to_bluesky(item, mute_flag),
+                            # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time),
                         )
 
                     # create concurrent tasks for each new item
@@ -217,6 +248,8 @@ def main():
                     await asyncio.gather(*tasks)
 
                     # save updated history
+                    inserted, skipped = db.insert_execution_log_from_json(new_items)
+                    logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
                     history_reader.set_data(updated_history)
                     logger.debug("Updated history written to %s", logfile)
                 else:
@@ -235,6 +268,7 @@ def main():
         # lancio l'event loop
         asyncio.run(_worker_loop())
     except KeyboardInterrupt:
+        db.close()
         logger.info("KeyboardInterrupt received – shutting down SocialBot.")
 
 

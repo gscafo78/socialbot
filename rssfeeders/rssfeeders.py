@@ -57,7 +57,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger                
 from gpt.gptcomment import ArticleCommentator   
 
-__version__ = "0.1.2"
+__version__ = "1.0.0"
 
 
 class RSSFeeders:
