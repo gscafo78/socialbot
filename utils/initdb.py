@@ -13,6 +13,8 @@ import getpass
 import os
 from cryptography.fernet import Fernet
 import logging
+import json
+import datetime
 
 import mariadb
 import pwinput
@@ -444,6 +446,195 @@ class DatabaseManager:
         self.conn.commit()
         self.logger.info("All tables dropped.")
 
+def generate_feed_list_from_db(db: DatabaseManager):
+    """
+    Estrae i feed dal database e genera una lista di dizionari con la struttura richiesta.
+    Richiede una connessione già aperta.
+    """
+    feeds = []
+    db.cur.execute("SELECT id, rss, ai FROM feeds")
+    for feed_id, rss, ai in db.cur.fetchall():
+        entry = {"rss": rss, "ai": bool(ai)}
+        # Bluesky bots
+        db.cur.execute("""
+            SELECT b.name FROM feed_bluesky_accounts fba
+            JOIN bluesky_accounts b ON fba.bluesky_account_id = b.id
+            WHERE fba.feed_id = %s
+        """, (feed_id,))
+        bluesky_bots = [row[0] for row in db.cur.fetchall()]
+        if bluesky_bots:
+            entry["bluesky"] = {"bots": bluesky_bots}
+        # LinkedIn bots
+        db.cur.execute("""
+            SELECT l.name FROM feed_linkedin_accounts fla
+            JOIN linkedin_accounts l ON fla.linkedin_account_id = l.id
+            WHERE fla.feed_id = %s
+        """, (feed_id,))
+        linkedin_bots = [row[0] for row in db.cur.fetchall()]
+        if linkedin_bots:
+            entry["linkedin"] = {"bots": linkedin_bots}
+        # Telegram bots (opzionale)
+        db.cur.execute("""
+            SELECT t.name FROM feed_telegram_accounts fta
+            JOIN telegram_accounts t ON fta.telegram_account_id = t.id
+            WHERE fta.feed_id = %s
+        """, (feed_id,))
+        telegram_bots = [row[0] for row in db.cur.fetchall()]
+        if telegram_bots:
+            entry["telegram"] = {"bots": telegram_bots}
+        feeds.append(entry)
+    return feeds
+
+def export_accounts_cleartext(db: DatabaseManager):
+    """
+    Estrae tutti gli account Telegram, Bluesky e LinkedIn dal database,
+    decifrando i campi sensibili e restituendo una lista strutturata come richiesto.
+    """
+    result = []
+    # Telegram
+    db.cur.execute("SELECT name, token, chat_id FROM telegram_accounts")
+    telegram = []
+    for name, token, chat_id in db.cur.fetchall():
+        telegram.append({
+            "name": name,
+            "token": db._decrypt(token),
+            "chat_id": chat_id
+        })
+    if telegram:
+        result.append({"telegram": telegram})
+    # Bluesky
+    db.cur.execute("SELECT name, handle, password, service, mute FROM bluesky_accounts")
+    bluesky = []
+    for name, handle, password, service, mute in db.cur.fetchall():
+        entry = {
+            "name": name,
+            "handle": handle,
+            "password": db._decrypt(password),
+            "service": service
+        }
+        if mute is not None:
+            entry["mute"] = bool(mute)
+        bluesky.append(entry)
+    if bluesky:
+        result.append({"bluesky": bluesky})
+    # LinkedIn
+    db.cur.execute("SELECT name, urn, access_token, mute FROM linkedin_accounts")
+    linkedin = []
+    for name, urn, access_token, mute in db.cur.fetchall():
+        entry = {
+            "name": name,
+            "urn": urn,
+            "access_token": db._decrypt(access_token)
+        }
+        if mute is not None:
+            entry["mute"] = bool(mute)
+        linkedin.append(entry)
+    if linkedin:
+        result.append({"linkedin": linkedin})
+    return result
+
+def export_ai_config_cleartext(db: DatabaseManager):
+    """
+    Estrae tutte le configurazioni AI dal database,
+    decifrando la chiave e restituendo una lista di dict.
+    """
+    result = []
+    db.cur.execute("SELECT ai_key, ai_base_url, ai_model, ai_comment_max_chars, ai_comment_language, created_at FROM ai_config")
+    for ai_key, ai_base_url, ai_model, ai_comment_max_chars, ai_comment_language, created_at in db.cur.fetchall():
+        result.append({
+            "ai_key": db._decrypt(ai_key),
+            "ai_base_url": ai_base_url,
+            "ai_model": ai_model,
+            "ai_comment_max_chars": ai_comment_max_chars,
+            "ai_comment_language": ai_comment_language,
+            "created_at": str(created_at)
+        })
+    return result
+
+def export_execution_logs(db: DatabaseManager):
+    """
+    Estrae tutti i record da execution_logs e li restituisce come lista di dict/json.
+    """
+    db.cur.execute("""
+        SELECT l.id, f.rss, l.link, l.datetime, l.description, l.title, l.ai_comment, l.category, l.short_link, l.img_link
+        FROM execution_logs l
+        JOIN feeds f ON l.feed_id = f.id
+        ORDER BY l.datetime DESC
+    """)
+    logs = []
+    for row in db.cur.fetchall():
+        logs.append({
+            "id": row[0],
+            "rss": row[1],
+            "link": row[2],
+            "datetime": str(row[3]),
+            "description": row[4],
+            "title": row[5],
+            "ai-comment": row[6],
+            "category": json.loads(row[7]) if row[7] else None,
+            "short_link": row[8],
+            "img_link": row[9]
+        })
+    return logs
+
+def insert_execution_log_from_json(db: DatabaseManager, data):
+    """
+    Inserisce uno o più record in execution_logs a partire da un dizionario o una lista di dizionari JSON.
+    Cerca l'id del feed tramite il campo 'rss'.
+    Se il feed non esiste, logga un warning e salta l'inserimento.
+    Se la data non è valida o fuori range, la sostituisce con None (default now).
+    Restituisce una tupla (inseriti, saltati).
+    """
+    inserted = 0
+    skipped = 0
+    if isinstance(data, list):
+        for item in data:
+            i, s = insert_execution_log_from_json(db, item)
+            inserted += i
+            skipped += s
+        return inserted, skipped
+    # Trova feed_id dal campo rss
+    db.cur.execute("SELECT id FROM feeds WHERE rss = %s", (data["rss"],))
+    row = db.cur.fetchone()
+    if not row:
+        db.logger.warning(f"Feed RSS not found in DB: {data['rss']}. Skipping log entry.")
+        return 0, 1
+    feed_id = row[0]
+    # Gestione datetime
+    dt = data.get("datetime")
+    dt_valid = None
+    if dt:
+        try:
+            # MariaDB TIMESTAMP: 1970-01-01 00:00:01 to 2038-01-19 03:14:07
+            dt_obj = datetime.datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
+            if dt_obj < datetime.datetime(1970,1,1,0,0,1) or dt_obj > datetime.datetime(2038,1,19,3,14,7):
+                db.logger.warning(f"Datetime '{dt}' out of range for MariaDB TIMESTAMP. Using default (now).")
+                dt_valid = None
+            else:
+                dt_valid = dt
+        except Exception:
+            db.logger.warning(f"Invalid datetime format: '{dt}'. Using default (now).")
+            dt_valid = None
+    stmt = """
+        INSERT INTO execution_logs (
+            feed_id, link, datetime, description, title, ai_comment, category, short_link, img_link
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    db.cur.execute(stmt, (
+        feed_id,
+        data.get("link"),
+        dt_valid,
+        data.get("description"),
+        data.get("title"),
+        data.get("ai-comment"),
+        json.dumps(data.get("category")) if data.get("category") is not None else None,
+        data.get("short_link"),
+        data.get("img_link")
+    ))
+    db.conn.commit()
+    db.logger.info(f"Execution log inserted for feed_id={feed_id}, title={data.get('title')}")
+    return 1, 0
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -468,8 +659,14 @@ def parse_args():
     sub.add_parser("insert-linkedin", help="inserisce account LinkedIn (interactive)")
     sub.add_parser("insert-feed", help="inserisce un nuovo feed (interactive)")
     sub.add_parser("drop-all", help="rimuove tutti i dati e le tabelle (ATTENZIONE: operazione distruttiva)")
+    sub.add_parser("export-feeds", help="esporta la lista feed+bot in formato JSON")
+    sub.add_parser("export-accounts", help="esporta tutti gli account in chiaro in formato JSON")
+    sub.add_parser("export-ai", help="esporta la configurazione AI in chiaro in formato JSON")
+    sub.add_parser("insert-execution-log", help="inserisce un record in execution_logs da un file JSON")
+    sub.add_parser("export-execution-logs", help="esporta tutti i log di esecuzione in formato JSON")
 
     return parser.parse_args()
+
 
 
 def main():
@@ -504,12 +701,30 @@ def main():
         db.insert_linkedin_interactive()
     elif args.command == "insert-feed":
         db.insert_feed_interactive()
+    elif args.command == "export-feeds":
+        feeds = generate_feed_list_from_db(db)
+        print(json.dumps(feeds, indent=4, ensure_ascii=False))
+    elif args.command == "export-accounts":
+        accounts = export_accounts_cleartext(db)
+        print(json.dumps(accounts, indent=4, ensure_ascii=False))
+    elif args.command == "export-ai":
+        ai_config = export_ai_config_cleartext(db)
+        print(json.dumps(ai_config, indent=4, ensure_ascii=False))
     elif args.command == "drop-all":
         confirm = input("Sei sicuro di voler rimuovere TUTTI i dati e le tabelle? (y/N): ").strip().lower()
         if confirm in ("y", "yes"):
             db.drop_all_tables()
         else:
             print("[INFO] Operazione annullata.")
+    elif args.command == "insert-execution-log":
+        json_path = input("Path file JSON da inserire: ").strip()
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        inserted, skipped = insert_execution_log_from_json(db, data)
+        print(f"[OK] Execution log inseriti: {inserted}, saltati: {skipped}.")
+    elif args.command == "export-execution-logs":
+        logs = export_execution_logs(db)
+        print(json.dumps(logs, indent=4, ensure_ascii=False))
     else:
         print(f"[ERRORE] Comando sconosciuto: {args.command}")
         sys.exit(1)
@@ -519,3 +734,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
