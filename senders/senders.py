@@ -109,6 +109,7 @@ class SocialSender:
         bots = feed.get("telegram", {}).get("bots", [])
         tasks = []
         for bot_name in bots:
+            # da modificare per leggere i valori di telegram
             token, chat_id, _, mute = self.reader.get_social_values("telegram", bot_name)
             if mute and ismute:
                 self.logger.debug(
@@ -148,6 +149,7 @@ class SocialSender:
         bots = feed.get("bluesky", {}).get("bots", [])
         tasks = []
         for bot_name in bots:
+            # Da modificare per leggere i valori di bluesky
             handle, password, service, mute = self.reader.get_social_values("bluesky", bot_name)
             if mute and ismute:
                 self.logger.debug(
@@ -197,7 +199,10 @@ class SocialSender:
         bots = feed.get("linkedin", {}).get("bots", [])
         tasks = []
         for bot_name in bots:
+            
+            # Da modificare per leggere i valori di linkedin
             urn, access_token, _, mute = self.reader.get_social_values("linkedin", bot_name)
+            
             if mute and ismute:
                 self.logger.debug(
                     "Skipping LinkedIn message for '%s' due to mute setting.", feed.get("title", "")

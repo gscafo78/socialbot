@@ -243,7 +243,7 @@ def main():
                     logger.info("Found %d new items – launching asynchronous dispatch…", len(new_items))
 
                     async def _process_item(item):
-                        sender = SocialSender(reader, logger)
+                        sender = SocialSender(db.export_accounts_cleartext(), logger)
                         # send in parallel to all configured channels
                         await asyncio.gather(
                             sender.send_to_telegram(item, mute_flag),
