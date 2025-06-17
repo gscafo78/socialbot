@@ -102,6 +102,60 @@ class DatabaseManager:
                 mute BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+            """,
+            # Tabella per i Feed
+            """
+            CREATE TABLE IF NOT EXISTS feeds (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                rss VARCHAR(255) NOT NULL,
+                ai BOOLEAN NOT NULL DEFAULT FALSE
+            );
+            """,
+            # Tabella per Feed Telegram
+            """
+            CREATE TABLE IF NOT EXISTS feed_telegram_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                feed_id INT NOT NULL,
+                telegram_account_id INT NOT NULL,
+                FOREIGN KEY (feed_id) REFERENCES feeds(id),
+                FOREIGN KEY (telegram_account_id) REFERENCES telegram_accounts(id)
+            );
+            """,
+            # Tabella per Feed Linkedin
+            """
+            CREATE TABLE IF NOT EXISTS feed_linkedin_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                feed_id INT NOT NULL,
+                linkedin_account_id INT NOT NULL,
+                FOREIGN KEY (feed_id) REFERENCES feeds(id),
+                FOREIGN KEY (linkedin_account_id) REFERENCES linkedin_accounts(id)
+            );
+            """,
+            # Tabella per Feed Bluesky
+            """
+            CREATE TABLE IF NOT EXISTS feed_bluesky_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                feed_id INT NOT NULL,
+                bluesky_account_id INT NOT NULL,
+                FOREIGN KEY (feed_id) REFERENCES feeds(id),
+                FOREIGN KEY (bluesky_account_id) REFERENCES bluesky_accounts(id)
+            );
+            """,
+            # Tabella per i log di esecuzione
+            """
+            CREATE TABLE IF NOT EXISTS execution_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                feed_id INT NOT NULL,
+                link VARCHAR(255) NOT NULL,
+                datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                description TEXT,
+                title VARCHAR(255) NOT NULL,
+                ai_comment TEXT,
+                category TEXT,
+                short_link VARCHAR(255),
+                img_link VARCHAR(255),
+                FOREIGN KEY (feed_id) REFERENCES feeds(id)
+            );
             """
         ]
 
