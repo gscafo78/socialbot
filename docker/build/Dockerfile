@@ -3,7 +3,14 @@ FROM python:3.11.12-slim-bookworm
 
 # Install required packages using apt (not apk, which is for Alpine)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tzdata curl git && \
+    apt-get install -y --no-install-recommends tzdata \
+                                               curl \
+                                               git \
+                                               python3-dev \
+                                               build-essential \
+                                               libmariadb-dev \
+                                               libmariadb-dev-compat \
+                                               pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
 # Improve container logging
