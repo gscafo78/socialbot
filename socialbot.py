@@ -146,13 +146,11 @@ def main():
     ai_lang = ai_config[0]["ai_comment_language"]
     ai_base_url = ai_config[0]["ai_base_url"]
     gpt_model = ai_config[0]["ai_model"]
-    ai_key = ai_config[0]["ai_key"]
 
 
     # --- Auto‑select GPT model if requested -----------------------------------
     if gpt_model == "auto":
         logger.info("AI model set to 'auto', selecting cheapest GPT model …")
-        # gpt_model = GPTModelSelector(ai_key, logger).get_cheapest_gpt_model()
         raw = Model.fetch_raw_models(logger)
         models = Model.process_models(raw, logger)
         cheapest_model = Model.find_cheapest_model(models, logger, filter_str="openai")
@@ -163,20 +161,9 @@ def main():
         gpt_in_price = 0
         gpt_out_price = 0
 
-    # feeds_path = reader.get_value(
-    #     "settings", {}
-    # ).get("feeds_file", "/opt/github/03_Script/Python/socialbot/feeds.json")
-  
-    # logfile = reader.get_value("settings", {}).get("log_file", "/var/log/socialbot.log")
-    
-
-
-
     # --- Startup logging -------------------------------------------------------
     logger.info("Starting SocialBot – version %s", __version__)
     logger.debug("Config file path: %s", args.config_path)
-    # logger.info("Feeds file path: %s", feeds_path)
-    # logger.info("Log file (history) path: %s", logfile)
     logger.info("Cron schedule for updates: %s", cron_expr)
     logger.info(
         "Mute window from %s to %s → is_mute_time=%s",
@@ -202,33 +189,12 @@ def main():
             nonlocal sleep_time
 
             while True:
-                
-                # Load history and feeds for this cycle
-                # history_reader = JSONReader(logfile, create=True, logger=logger)
-                # seen_items_old = history_reader.get_data() or []
                 retdays = (datetime.now() - timedelta(days=retention_days)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
                 db.delete_old_execution_logs(retdays)
                 logger.debug("News removed until %s", retdays)
-
                 retnews = (datetime.now() - timedelta(days=days_of_news)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
                 logger.debug("Load news from %s", retnews)
-
-
-                # feeds_reader = JSONReader(feeds_path, logger=logger)
-                # all_feeds_old = feeds_reader.get_data() or []
-
-
-                # Ensure all feed entries have the necessary keys
-                # for feed in feeds_list:
-                #     feed.setdefault("link", "")
-                #     feed.setdefault("datetime", "")
-                #     feed.setdefault("description", "")
-                #     feed.setdefault("title", "")
-                #     feed.setdefault("ai-comment", "")
-                # Check if we are currently within the mute window
-
                 mute_flag = mute_checker.is_mute_time()
-
                 rss = RSSFeeders(db,                                 
                                  logger=logger,
                                  mutetime=mute_flag,
@@ -236,10 +202,6 @@ def main():
                 )
 
                 new_items = rss.get_latest_rss()
-
-                # if new_items:
-                #     logger.info("Found %d new items – launching asynchronous dispatch…", len(new_items))
-
                 async def _process_item(item):
                     sender = SocialSender(db.export_accounts_cleartext(), logger)
                     # Send in parallel to all configured channels
@@ -248,7 +210,6 @@ def main():
                         # sender.send_to_bluesky(item, mute_flag),
                         # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time)
                     )
-                    # Insert execution log
                     result = db.insert_execution_log_from_json(item)
                     if result is not None:
                         inserted, skipped = result
@@ -260,15 +221,9 @@ def main():
                 tasks = [asyncio.create_task(_process_item(it)) for it in new_items]
                 await asyncio.gather(*tasks)
 
-                # save updated history
                 inserted, skipped = db.insert_execution_log_from_json(new_items)
                 logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
-                # history_reader.set_data(updated_history)
-                # logger.debug("Updated history written to %s", logfile)
-                # else:
-                #     logger.info("No new RSS items found this cycle.")
 
-                # compute next run time using cron schedule
                 cron_iter = croniter(cron_expr, datetime.now())
                 next_run = cron_iter.get_next(datetime)
                 sleep_time = (next_run - datetime.now()).total_seconds()
