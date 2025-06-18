@@ -14,6 +14,7 @@ from cryptography.fernet import Fernet
 import logging
 import json
 import datetime
+import re
 
 import mariadb
 import pwinput
@@ -612,16 +613,19 @@ class DatabaseManager:
         feed_id = row[0]
         # Handle datetime
         dt = data.get("datetime")
+        # print(f"Tipo inatteso: {type(dt).__name__!r}")
+        # match = dt.strftime("%Y-%m-%d %H:%M:%S")
         dt_valid = None
         if dt:
             try:
-                # MariaDB TIMESTAMP: 1970-01-01 00:00:01 to 2038-01-19 03:14:07
-                dt_obj = datetime.datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
-                if dt_obj < datetime.datetime(1970,1,1,0,0,1) or dt_obj > datetime.datetime(2038,1,19,3,14,7):
+                # limiti MariaDB TIMESTAMP
+                lower = datetime.datetime(1970,  1,  1, 0, 0,  1)
+                upper = datetime.datetime(2038, 1, 19, 3, 14, 7)
+                if lower <= dt <= upper:
+                    dt_valid = dt
+                else:
                     self.logger.warning(f"Datetime '{dt}' out of range for MariaDB TIMESTAMP. Using default (now).")
                     dt_valid = None
-                else:
-                    dt_valid = dt
             except Exception:
                 self.logger.warning(f"Invalid datetime format: '{dt}'. Using default (now).")
                 dt_valid = None
@@ -663,6 +667,14 @@ class DatabaseManager:
         self.conn.commit()
         self.logger.info(f"Deleted {deleted} execution_logs older than {cutoff_date}.")
         return deleted
+    
+    def link_exists_in_execution_logs(self, link: str) -> bool:
+        """
+        Returns True if the given link exists in the 'link' column of the execution_logs table, False otherwise.
+        """
+        query = "SELECT 1 FROM execution_logs WHERE link = %s LIMIT 1"
+        self.cur.execute(query, (link,))
+        return self.cur.fetchone() is not None
     
 def parse_args():
     parser = argparse.ArgumentParser(

@@ -209,66 +209,64 @@ def main():
                 retdays = (datetime.now() - timedelta(days=retention_days)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
                 db.delete_old_execution_logs(retdays)
                 logger.debug("News removed until %s", retdays)
+
                 retnews = (datetime.now() - timedelta(days=days_of_news)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
                 logger.debug("Load news from %s", retnews)
-                seen_items = db.export_execution_logs(retnews)
+
+
                 # feeds_reader = JSONReader(feeds_path, logger=logger)
                 # all_feeds_old = feeds_reader.get_data() or []
-                feeds_list = db.generate_feed_list()
+
+
                 # Ensure all feed entries have the necessary keys
-                for feed in feeds_list:
-                    feed.setdefault("link", "")
-                    feed.setdefault("datetime", "")
-                    feed.setdefault("description", "")
-                    feed.setdefault("title", "")
-                    feed.setdefault("ai-comment", "")
+                # for feed in feeds_list:
+                #     feed.setdefault("link", "")
+                #     feed.setdefault("datetime", "")
+                #     feed.setdefault("description", "")
+                #     feed.setdefault("title", "")
+                #     feed.setdefault("ai-comment", "")
                 # Check if we are currently within the mute window
+
                 mute_flag = mute_checker.is_mute_time()
-                rss = RSSFeeders(
-                    feeds_list,
-                    seen_items,
-                    retention_days=retention_days,
-                    base_url=ai_base_url,
-                    logger=logger,
-                    mutetime=mute_flag
-                )
-                new_items, _ = rss.get_new_feeders(
-                    ai_key,
-                    gpt_model,
-                    ai_max_chars,
-                    ai_lang
+
+                rss = RSSFeeders(db,                                 
+                                 logger=logger,
+                                 mutetime=mute_flag,
+                                 retention_days=0
                 )
 
-                if new_items:
-                    logger.info("Found %d new items – launching asynchronous dispatch…", len(new_items))
+                new_items = rss.get_latest_rss()
 
-                    async def _process_item(item):
-                        sender = SocialSender(db.export_accounts_cleartext(), logger)
-                        # Send in parallel to all configured channels
-                        await asyncio.gather(
-                            sender.send_to_telegram(item, mute_flag),
-                            # sender.send_to_bluesky(item, mute_flag),
-                            # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time)
-                        )
-                        # Insert execution log
-                        result = db.insert_execution_log_from_json(item)
-                        if result is not None:
-                            inserted, skipped = result
-                            logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
-                        else:
-                            logger.warning("Execution log insertion returned None for item: %s", item.get("title", ""))
+                # if new_items:
+                #     logger.info("Found %d new items – launching asynchronous dispatch…", len(new_items))
 
-                    # create concurrent tasks for each new item
-                    tasks = [asyncio.create_task(_process_item(it)) for it in new_items]
-                    await asyncio.gather(*tasks)
+                async def _process_item(item):
+                    sender = SocialSender(db.export_accounts_cleartext(), logger)
+                    # Send in parallel to all configured channels
+                    await asyncio.gather(
+                        sender.send_to_telegram(item, mute_flag),
+                        # sender.send_to_bluesky(item, mute_flag),
+                        # sender.send_to_linkedin(item, mute_flag, sleep_time=sleep_time)
+                    )
+                    # Insert execution log
+                    result = db.insert_execution_log_from_json(item)
+                    if result is not None:
+                        inserted, skipped = result
+                        logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
+                    else:
+                        logger.warning("Execution log insertion returned None for item: %s", item.get("title", ""))
 
-                    # save updated history
-                    # inserted, skipped = db.insert_execution_log_from_json(new_items)
-                    # logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
-                    # history_reader.set_data(updated_history)
-                    # logger.debug("Updated history written to %s", logfile)
-                else:
-                    logger.info("No new RSS items found this cycle.")
+                # create concurrent tasks for each new item
+                tasks = [asyncio.create_task(_process_item(it)) for it in new_items]
+                await asyncio.gather(*tasks)
+
+                # save updated history
+                inserted, skipped = db.insert_execution_log_from_json(new_items)
+                logger.debug("Execution logs inserted: %s, skipped: %s.", inserted, skipped)
+                # history_reader.set_data(updated_history)
+                # logger.debug("Updated history written to %s", logfile)
+                # else:
+                #     logger.info("No new RSS items found this cycle.")
 
                 # compute next run time using cron schedule
                 cron_iter = croniter(cron_expr, datetime.now())
