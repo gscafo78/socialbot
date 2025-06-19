@@ -24,6 +24,7 @@ WORKDIR /app
 RUN git clone --branch Develop --single-branch https://github.com/gscafo78/socialbot.git /app
 
 # Install dependencies
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the entrypoint script into the container

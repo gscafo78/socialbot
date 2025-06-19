@@ -3,6 +3,7 @@ services:
     build:
       context: ./build
       dockerfile: Dockerfile
+    image: socialbot:1.0.0
     container_name: socialbot
     volumes:
       - ./settings.json:/app/settings.json
