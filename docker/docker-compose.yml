@@ -8,6 +8,23 @@ services:
       - ./settings.json:/app/settings.json
       - ./feeds.json:/app/feeds.json
     # restart: unless-stopped
+    networks:
+      - socialbot_network
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONIOENCODING=UTF-8
+  db:
+    image: mariadb:10.6
+    container_name: socialbotdb
+    env_file:
+      - .env
+    ports: 127.0.0.1:3306:3306
+    volumes: mariadb_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+    - socialbot_network
+
+volumes: 
+  mariadb_data:
+    external:
+      name: mariadb_data
