@@ -18,13 +18,17 @@ services:
     container_name: socialbotdb
     env_file:
       - .env
-    ports: 127.0.0.1:3306:3306
-    volumes: mariadb_data:/var/lib/mysql
+    ports:
+      - 127.0.0.1:3306:3306
+    volumes:
+      - mariadb_data:/var/lib/mysql
     restart: unless-stopped
     networks:
     - socialbot_network
 
-volumes: 
+volumes:
   mariadb_data:
-    external:
-      name: mariadb_data
+    external: true
+
+networks:
+  socialbot_network:
