@@ -21,7 +21,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Clone the repository directly into /app
-RUN git clone https://github.com/gscafo78/socialbot.git /app
+RUN git clone --branch Develop --single-branch https://github.com/gscafo78/socialbot.git /app
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
