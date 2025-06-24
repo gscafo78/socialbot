@@ -613,8 +613,6 @@ class DatabaseManager:
         feed_id = row[0]
         # Handle datetime
         dt = data.get("datetime")
-        # print(f"Tipo inatteso: {type(dt).__name__!r}")
-        # match = dt.strftime("%Y-%m-%d %H:%M:%S")
         dt_valid = None
         if dt:
             try:

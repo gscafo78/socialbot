@@ -24,7 +24,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import Logger
 from gpt.gptcomment import ArticleCommentator
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 class RSSFeeders:
@@ -251,19 +251,23 @@ class RSSFeeders:
                 )
                 ai_comment = commentator.generate_comment() or ""
                 self.logger.info("Generated AI comment for %s", link)
-
-            results.append(
-                {
-                    "rss":         rss_url,
-                    "link":        link,
-                    "datetime":    dt,
-                    "title":       title,
-                    "description": description,
-                    "category":    categories,
-                    "short_link":  entry.get("id"),
-                    "img_link":    img_link,
-                    "ai_comment":  ai_comment,
-                }
-            )
+            
+            tmp = feed_info.copy()
+            
+            entry_dict = {
+                "rss":        rss_url,
+                "link":       link,
+                "datetime":   dt,
+                "title":      title,
+                "description":description,
+                "category":   categories,
+                "short_link": entry.get("id"),
+                "img_link":   img_link,
+                "ai_comment": ai_comment,
+            }
+            
+            tmp.update(entry_dict)
+             
+            results.append(tmp)
 
         return results

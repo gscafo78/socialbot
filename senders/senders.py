@@ -14,7 +14,7 @@ Description:
 - Version is shown with --version.
 
 """
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import argparse
 import logging
@@ -106,6 +106,7 @@ class SocialSender:
             ismute: If True, ignore individual bot mute flags and send anyway.
         """
         bot_names = feed.get("telegram", {}).get("bots", [])
+
         if not bot_names:
             return
 
