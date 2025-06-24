@@ -19,7 +19,7 @@ import re
 import mariadb
 import pwinput
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 class DatabaseManager:
@@ -644,7 +644,7 @@ class DatabaseManager:
             data.get("img_link")
         ))
         self.conn.commit()
-        self.logger.info(f"Execution log inserted for feed_id={feed_id}, title={data.get('title')}")
+        self.logger.info(f"Execution log inserted for RSS={data['rss']} feed_id={feed_id}, title={data.get('title')}")
         return 1, 0
 
     def delete_old_execution_logs(self, cutoff_date):

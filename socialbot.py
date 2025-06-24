@@ -37,7 +37,7 @@ from senders.senders import SocialSender
 # DatabaseManager for persistence and configuration storage
 from utils.dbmanager import DatabaseManager
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 # ------------------------------------------------------------------------------
 # Module‑level logging configuration
