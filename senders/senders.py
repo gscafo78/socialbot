@@ -14,7 +14,7 @@ Description:
 - Version is shown with --version.
 
 """
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 import argparse
 import logging
@@ -177,7 +177,7 @@ class SocialSender:
                 link_to_use = short_url
 
             blueskybot = BlueskyPoster(handle, password, service)
-            ai_comment = feed.get("ai-comment")
+            # ai_comment = feed.get("ai_comment")
 
             tasks.append(
                 run_in_thread(
@@ -185,7 +185,7 @@ class SocialSender:
                     title=feed.get("title", ""),
                     description=feed.get("description", ""),
                     link=link_to_use,
-                    ai_comment=ai_comment
+                    ai_comment=feed.get("ai_comment")
                 )
             )
 
@@ -229,8 +229,8 @@ class SocialSender:
                 link_to_use = short_url
 
             linkedinbot = LinkedInPublisher(access_token, urn=urn, logger=self.logger)
-            ai_comment = feed.get("ai-comment")
-            text_to_post = ai_comment or feed.get("description", "")
+            # ai_comment = feed['ai-comment']
+            text_to_post = feed.get("ai_comment") or feed.get("description", "")
 
             if sleep_time > 0:
                 delay = random.uniform(0, sleep_time / 2)
