@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-article_commentator.py  (version 0.0.6)
-
 Generate a colloquial summary and personal comment for an online article
 using OpenAI GPT models. If no model is supplied, selects the cheapest GPT
 model automatically.
@@ -41,7 +39,7 @@ from openai import OpenAI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from get_ai_model import Model
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 
 class ArticleCommentator:
