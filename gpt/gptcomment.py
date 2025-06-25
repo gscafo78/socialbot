@@ -41,7 +41,7 @@ from openai import OpenAI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from get_ai_model import Model
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 
 class ArticleCommentator:
@@ -109,8 +109,23 @@ class ArticleCommentator:
         Returns:
             The article text, or an empty string on failure.
         """
+        # Mimic a real browser to avoid ban/403
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/115.0.0.0 Safari/537.36"
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;"
+                "q=0.9,image/avif,image/webp,*/*;q=0.8"
+            ),
+            "Accept-Language": "en-US,en;q=0.5",
+            "Connection": "keep-alive",
+        }
+        
         try:
-            resp = requests.get(self.link, timeout=10)
+            resp = requests.get(self.link, headers=headers, timeout=10)
             resp.raise_for_status()
         except Exception as e:
             self.logger.error("Failed to fetch article at %s: %s", self.link, e)
